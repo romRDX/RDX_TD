@@ -1,0 +1,31 @@
+src/
+├─ game/                ← Phaser
+│  ├─ scenes/
+│  │  ├─ BootScene.js
+│  │  ├─ GameScene.js
+│  │  └─ UIScene.js (opcional)
+│  ├─ entities/
+│  │  ├─ Tower.js
+│  │  ├─ Enemy.js
+│  │  └─ Projectile.js
+│  └─ systems/
+│     ├─ WaveSystem.js
+│     ├─ CombatSystem.js
+│     └─ PathSystem.js
+│
+├─ ui/                  ← React
+│  ├─ screens/
+│  │  ├─ MainMenu.jsx
+│  │  ├─ Inventory.jsx
+│  │  ├─ SkillTree.jsx
+│  │  └─ Loadout.jsx
+│  ├─ components/
+│  └─ store/
+│
+├─ shared/
+│  ├─ types.js
+│  ├─ events.js
+│  └─ config.js
+│
+├─ main.jsx             ← React entry
+└─ game.ts              ← Phaser bootstrap
