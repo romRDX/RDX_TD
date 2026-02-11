@@ -15,6 +15,8 @@ import { generateDiamondGrid } from "../grid/DiamondGridGenerator";
 import { PlayerVisualController } from "../visual/PlayerVisualController";
 import { EnemyVisualController } from "../visual/EnemyVisualController";
 import { CombatPresenter } from "../presentation/CombatPresenter";
+import { EnemiesFactory } from "../factories/EnemiesFactory";
+import { EnemyManager } from "../systems/EnemyManager";
 
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
@@ -88,6 +90,13 @@ export class GameScene extends Phaser.Scene {
     const halfW = stageConfig.grid.cellWidth / 2;
     const halfH = stageConfig.grid.cellHeight / 2;
 
+    const gridToWorld = (row: number, col: number) => {
+      return {
+        x: stageConfig.grid.originX + (col - row) * halfW,
+        y: stageConfig.grid.originY + (col + row) * halfH,
+      };
+    };
+
     for (const { row, col } of cells) {
       const x = stageConfig.grid.originX + (col - row) * halfW;
       const y = stageConfig.grid.originY + (col + row) * halfH;
@@ -102,6 +111,35 @@ export class GameScene extends Phaser.Scene {
       stageConfig.grid.rows,
       stageConfig.grid.cols,
     );
+
+    const position = { row: 1, col: 1 };
+    const worldPos = gridToWorld(position.row, position.col);
+
+    const enemies = [];
+
+    for (let i = 0; i < 3; i++) {
+      enemies.push(
+        EnemiesFactory.create({
+          scene: this,
+          enemyTypeId: 1, // kobold
+        }),
+      );
+    }
+
+    const freeCells = this.enemyGrid.getEmptyPositions();
+
+    enemies.forEach((entry, index) => {
+      const cell = freeCells[index];
+      if (!cell) return;
+
+      const world = gridToWorld(cell.row, cell.col);
+
+      // posiciona visual
+      entry.visual.setPosition(world.x, world.y + KOBOLD_FOOT_OFFSET);
+
+      // registra no grid lógico
+      this.enemyGrid.addEnemy(entry.enemy, cell.row, cell.col);
+    });
 
     // ======================
     // PLAYER VISUAL
@@ -121,32 +159,6 @@ export class GameScene extends Phaser.Scene {
     );
 
     // ======================
-    // ENEMY (TESTE)
-    // ======================
-    const enemyGridRow = 1;
-    const enemyGridCol = 1;
-
-    const enemyX =
-      stageConfig.grid.originX + (enemyGridCol - enemyGridRow) * halfW;
-
-    const enemyY =
-      stageConfig.grid.originY + (enemyGridCol + enemyGridRow) * halfH;
-
-    this.enemyVisual = new EnemyVisualController(
-      this,
-      enemyX,
-      enemyY + KOBOLD_FOOT_OFFSET,
-      {
-        textureKey: "kobold-idle",
-        scale: 1,
-        flipX: true,
-        depth: 2,
-      },
-    );
-
-    this.enemyVisual.playIdle("kobold-idle");
-
-    // ======================
     // COMBATE
     // ======================
     const character = new Character({
@@ -155,16 +167,14 @@ export class GameScene extends Phaser.Scene {
       attackSpeed: this.attackSpeed,
     });
 
-    const enemy = new Enemy(250);
+    const firstEnemy = enemies[0];
 
-    this.enemyGrid.addEnemy(enemy, enemyGridRow, enemyGridCol);
-
-    const combat = new CombatSystem(character, enemy);
+    const combat = new CombatSystem(character, firstEnemy.enemy);
 
     this.combatPresenter = new CombatPresenter(
       combat,
       this.playerVisual,
-      this.enemyVisual,
+      firstEnemy.visual,
     );
   }
 
