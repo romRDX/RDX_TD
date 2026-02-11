@@ -10,6 +10,10 @@ export class CombatSystem {
     this.enemy = enemy;
   }
 
+  setEnemy(enemy: Enemy) {
+    this.enemy = enemy;
+  }
+
   /**
    * Atualiza apenas timers / estado.
    * NÃO aplica dano.

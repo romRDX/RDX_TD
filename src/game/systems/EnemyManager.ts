@@ -25,6 +25,6 @@ export class EnemyManager {
    * (mais tarde isso vira targeting de verdade)
    */
   getCurrentTarget(): Enemy | null {
-    return this.enemies[0] ?? null;
+    return this.enemies.length > 0 ? this.enemies[0] : null;
   }
 }

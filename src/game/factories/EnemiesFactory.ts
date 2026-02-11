@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import { Enemy } from "../entities/Enemy";
 import { EnemyVisualController } from "../visual/EnemyVisualController";
+import type { EnemyEntry } from "../types/EnemyEntry";
 
 /**
  * Tipos básicos de inimigos
@@ -45,7 +46,7 @@ export class EnemiesFactory {
   }: {
     scene: Phaser.Scene;
     enemyTypeId: EnemyTypeId;
-  }) {
+  }): EnemyEntry {
     const proto = ENEMY_PROTOTYPES[enemyTypeId];
 
     if (!proto) {

@@ -181,6 +181,32 @@ export class GameScene extends Phaser.Scene {
       combat,
       this.playerVisual,
       enemies[0].visual,
+      (deadEnemy) => {
+        // 1️⃣ remover do manager
+        this.enemyManager.removeEnemy(deadEnemy);
+
+        // 2️⃣ remover do grid
+        this.enemyGrid.removeEnemyByInstance(deadEnemy);
+
+        // 3️⃣ pegar próximo alvo
+        const nextEnemy = this.enemyManager.getCurrentTarget();
+
+        if (!nextEnemy) {
+          console.log("All enemies defeated");
+          return;
+        }
+
+        // 4️⃣ encontrar o visual correspondente
+        const nextEntry = enemies.find((e) => e.enemy === nextEnemy);
+
+        if (!nextEntry) {
+          console.warn("Visual not found for next enemy");
+          return;
+        }
+
+        // 5️⃣ trocar alvo no presenter
+        this.combatPresenter.setEnemy(nextEnemy, nextEntry.visual);
+      },
     );
 
     // const firstEnemy = enemies[0];
