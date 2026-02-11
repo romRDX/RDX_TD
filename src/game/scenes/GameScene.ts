@@ -24,6 +24,7 @@ const KOBOLD_FOOT_OFFSET = 0;
 
 export class GameScene extends Phaser.Scene {
   private enemyGrid!: EnemyGrid;
+  private enemyManager!: EnemyManager;
   private combatPresenter!: CombatPresenter;
 
   private playerVisual!: PlayerVisualController;
@@ -112,8 +113,7 @@ export class GameScene extends Phaser.Scene {
       stageConfig.grid.cols,
     );
 
-    const position = { row: 1, col: 1 };
-    const worldPos = gridToWorld(position.row, position.col);
+    this.enemyManager = new EnemyManager();
 
     const enemies = [];
 
@@ -139,6 +139,8 @@ export class GameScene extends Phaser.Scene {
 
       // registra no grid lógico
       this.enemyGrid.addEnemy(entry.enemy, cell.row, cell.col);
+
+      this.enemyManager.addEnemy(entry.enemy);
     });
 
     // ======================
@@ -167,15 +169,29 @@ export class GameScene extends Phaser.Scene {
       attackSpeed: this.attackSpeed,
     });
 
-    const firstEnemy = enemies[0];
+    const target = this.enemyManager.getCurrentTarget();
 
-    const combat = new CombatSystem(character, firstEnemy.enemy);
+    if (!target) {
+      throw new Error("No enemies available to start combat");
+    }
+
+    const combat = new CombatSystem(character, target);
 
     this.combatPresenter = new CombatPresenter(
       combat,
       this.playerVisual,
-      firstEnemy.visual,
+      enemies[0].visual,
     );
+
+    // const firstEnemy = enemies[0];
+
+    // const combat = new CombatSystem(character, firstEnemy.enemy);
+
+    // this.combatPresenter = new CombatPresenter(
+    //   combat,
+    //   this.playerVisual,
+    //   firstEnemy.visual,
+    // );
   }
 
   // ======================
