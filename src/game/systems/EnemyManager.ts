@@ -1,17 +1,17 @@
-import { Enemy } from "../entities/Enemy";
+import type { EnemyEntry } from "../types/EnemyEntry";
 
 export class EnemyManager {
-  private enemies: Enemy[] = [];
+  private enemies: EnemyEntry[] = [];
 
-  addEnemy(enemy: Enemy) {
-    this.enemies.push(enemy);
+  addEnemy(entry: EnemyEntry) {
+    this.enemies.push(entry);
   }
 
-  removeEnemy(enemy: Enemy) {
-    this.enemies = this.enemies.filter((e) => e !== enemy);
+  removeEnemy(entry: EnemyEntry) {
+    this.enemies = this.enemies.filter((e) => e !== entry);
   }
 
-  getAllEnemies(): Enemy[] {
+  getAllEnemies(): EnemyEntry[] {
     return this.enemies;
   }
 
@@ -22,9 +22,17 @@ export class EnemyManager {
   /**
    * Regra simples por enquanto:
    * - primeiro inimigo da lista
-   * (mais tarde isso vira targeting de verdade)
+   * (mais tarde isso vira targeting real)
    */
-  getCurrentTarget(): Enemy | null {
+  getCurrentTarget(): EnemyEntry | null {
     return this.enemies.length > 0 ? this.enemies[0] : null;
+  }
+
+  /**
+   * Permite encontrar um entry pelo Enemy lógico
+   * Útil para casos onde só temos a referência do Enemy
+   */
+  findByEnemy(enemy: EnemyEntry["enemy"]): EnemyEntry | undefined {
+    return this.enemies.find((e) => e.enemy === enemy);
   }
 }

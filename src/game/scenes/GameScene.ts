@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 
 import { Character } from "../entities/Character";
-import { Enemy } from "../entities/Enemy";
 import { CombatSystem } from "../systems/CombatSystem";
 import { EnemyGrid } from "../systems/EnemyGrid";
 
@@ -13,10 +12,10 @@ import { GridHudRenderer } from "../grid/GridHudRenderer";
 import { generateDiamondGrid } from "../grid/DiamondGridGenerator";
 
 import { PlayerVisualController } from "../visual/PlayerVisualController";
-import { EnemyVisualController } from "../visual/EnemyVisualController";
 import { CombatPresenter } from "../presentation/CombatPresenter";
 import { EnemiesFactory } from "../factories/EnemiesFactory";
 import { EnemyManager } from "../systems/EnemyManager";
+import type { EnemyEntry } from "../types/EnemyEntry";
 
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
@@ -28,8 +27,6 @@ export class GameScene extends Phaser.Scene {
   private combatPresenter!: CombatPresenter;
 
   private playerVisual!: PlayerVisualController;
-  private enemyVisual!: EnemyVisualController;
-
   private gridHud!: GridHudRenderer;
 
   private lastAttackTime = 0;
@@ -39,9 +36,6 @@ export class GameScene extends Phaser.Scene {
     super("GameScene");
   }
 
-  // ======================
-  // PRELOAD
-  // ======================
   preload() {
     preloadAssets(this, {
       enemies: [
@@ -55,29 +49,17 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // ======================
-  // CREATE
-  // ======================
   create() {
     const stageConfig = defaultStageConfig;
 
-    // ======================
     // BACKGROUND
-    // ======================
     const castle = this.add.image(240, GROUND_Y, "castle");
-
     castle.setOrigin(1.0, 0.83).setScale(0.6).setFlipX(true).setDepth(0);
 
-    castle.setCrop(0, 0, castle.width, castle.height);
-
-    // ======================
     // ANIMATIONS
-    // ======================
     createAnimations(this.anims);
 
-    // ======================
     // GRID HUD
-    // ======================
     this.gridHud = new GridHudRenderer(this, {
       radius: 26,
       strokeColor: 0xffffff,
@@ -91,23 +73,17 @@ export class GameScene extends Phaser.Scene {
     const halfW = stageConfig.grid.cellWidth / 2;
     const halfH = stageConfig.grid.cellHeight / 2;
 
-    const gridToWorld = (row: number, col: number) => {
-      return {
-        x: stageConfig.grid.originX + (col - row) * halfW,
-        y: stageConfig.grid.originY + (col + row) * halfH,
-      };
-    };
+    const gridToWorld = (row: number, col: number) => ({
+      x: stageConfig.grid.originX + (col - row) * halfW,
+      y: stageConfig.grid.originY + (col + row) * halfH,
+    });
 
     for (const { row, col } of cells) {
-      const x = stageConfig.grid.originX + (col - row) * halfW;
-      const y = stageConfig.grid.originY + (col + row) * halfH;
-
+      const { x, y } = gridToWorld(row, col);
       this.gridHud.drawCell(x, y);
     }
 
-    // ======================
     // GRID LÓGICO
-    // ======================
     this.enemyGrid = new EnemyGrid(
       stageConfig.grid.rows,
       stageConfig.grid.cols,
@@ -115,13 +91,13 @@ export class GameScene extends Phaser.Scene {
 
     this.enemyManager = new EnemyManager();
 
-    const enemies = [];
+    const enemies: EnemyEntry[] = [];
 
     for (let i = 0; i < 3; i++) {
       enemies.push(
         EnemiesFactory.create({
           scene: this,
-          enemyTypeId: 1, // kobold
+          enemyTypeId: 1,
         }),
       );
     }
@@ -137,15 +113,14 @@ export class GameScene extends Phaser.Scene {
       // posiciona visual
       entry.visual.setPosition(world.x, world.y + KOBOLD_FOOT_OFFSET);
 
-      // registra no grid lógico
+      // registra no grid
       this.enemyGrid.addEnemy(entry.enemy, cell.row, cell.col);
 
-      this.enemyManager.addEnemy(entry.enemy);
+      // registra no manager
+      this.enemyManager.addEnemy(entry);
     });
 
-    // ======================
     // PLAYER VISUAL
-    // ======================
     this.playerVisual = new PlayerVisualController(
       this,
       215,
@@ -155,74 +130,50 @@ export class GameScene extends Phaser.Scene {
         idleAnim: "knight-idle",
         attackAnim: "knight-attack",
         attackLoopAnim: "knight-attack-loop",
-        scale: 1.8, // 👈 agora funciona
+        scale: 1.8,
         depth: 2,
       },
     );
 
-    // ======================
     // COMBATE
-    // ======================
     const character = new Character({
       maxHp: 100,
       damage: 10,
       attackSpeed: this.attackSpeed,
     });
 
-    const target = this.enemyManager.getCurrentTarget();
+    const firstTarget = this.enemyManager.getCurrentTarget();
+    if (!firstTarget) throw new Error("No enemies available");
 
-    if (!target) {
-      throw new Error("No enemies available to start combat");
-    }
-
-    const combat = new CombatSystem(character, target);
+    const combat = new CombatSystem(character, firstTarget.enemy);
 
     this.combatPresenter = new CombatPresenter(
       combat,
       this.playerVisual,
-      enemies[0].visual,
+      firstTarget.visual,
       (deadEnemy) => {
-        // 1️⃣ remover do manager
-        this.enemyManager.removeEnemy(deadEnemy);
+        // encontra o entry correspondente
+        const deadEntry = this.enemyManager.findByEnemy(deadEnemy);
+        if (!deadEntry) return;
 
-        // 2️⃣ remover do grid
+        // remove do manager
+        this.enemyManager.removeEnemy(deadEntry);
+
+        // remove do grid
         this.enemyGrid.removeEnemyByInstance(deadEnemy);
 
-        // 3️⃣ pegar próximo alvo
-        const nextEnemy = this.enemyManager.getCurrentTarget();
-
-        if (!nextEnemy) {
+        // pega próximo alvo
+        const nextTarget = this.enemyManager.getCurrentTarget();
+        if (!nextTarget) {
           console.log("All enemies defeated");
           return;
         }
 
-        // 4️⃣ encontrar o visual correspondente
-        const nextEntry = enemies.find((e) => e.enemy === nextEnemy);
-
-        if (!nextEntry) {
-          console.warn("Visual not found for next enemy");
-          return;
-        }
-
-        // 5️⃣ trocar alvo no presenter
-        this.combatPresenter.setEnemy(nextEnemy, nextEntry.visual);
+        // troca alvo no presenter
+        this.combatPresenter.setEnemy(nextTarget.enemy, nextTarget.visual);
       },
     );
-
-    // const firstEnemy = enemies[0];
-
-    // const combat = new CombatSystem(character, firstEnemy.enemy);
-
-    // this.combatPresenter = new CombatPresenter(
-    //   combat,
-    //   this.playerVisual,
-    //   firstEnemy.visual,
-    // );
   }
-
-  // ======================
-  // UPDATE
-  // ======================
 
   update(time: number, delta: number) {
     this.combatPresenter.update(delta);
@@ -230,17 +181,14 @@ export class GameScene extends Phaser.Scene {
     const attackIntervalMs = 1000 / this.attackSpeed;
     const attackIntervalSec = attackIntervalMs / 1000;
 
-    // 🔹 duração base da animação (frameCount / frameRate)
-    const ATTACK_ANIM_DURATION = 0.7; // 7 frames / 10 fps
+    const ATTACK_ANIM_DURATION = 0.7;
 
     let animationSpeedMultiplier = 1;
 
-    // 👇 só acelera se a animação NÃO couber no intervalo
     if (ATTACK_ANIM_DURATION > attackIntervalSec) {
       animationSpeedMultiplier = ATTACK_ANIM_DURATION / attackIntervalSec;
     }
 
-    // 👇 nunca deixa a animação lenta demais
     animationSpeedMultiplier = Math.max(animationSpeedMultiplier, 1);
 
     this.playerVisual.setAttackSpeed(animationSpeedMultiplier);
@@ -250,21 +198,4 @@ export class GameScene extends Phaser.Scene {
       this.playerVisual.startAttack();
     }
   }
-
-  // update(time: number, delta: number) {
-  //   this.combatPresenter.update(delta);
-
-  //   // 👇 CONVERSÃO attackSpeed → multiplicador de animação
-  //   const attackSpeedMultiplier = this.attackSpeed / 5;
-  //   // 5 = attackSpeed base (ajuste se quiser)
-
-  //   this.playerVisual.setAttackSpeed(attackSpeedMultiplier);
-
-  //   const attackIntervalMs = 1000 / this.attackSpeed;
-
-  //   if (time - this.lastAttackTime >= attackIntervalMs) {
-  //     this.lastAttackTime = time;
-  //     this.playerVisual.startAttack();
-  //   }
-  // }
 }
