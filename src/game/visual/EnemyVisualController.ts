@@ -12,6 +12,9 @@ type EnemyVisualConfig = {
 export class EnemyVisualController {
   private sprite: Phaser.GameObjects.Sprite;
   private healthBar: EnemyHealthBar;
+  private footOffset = 18; // ajuste fino aqui
+  private healthBarOffsetY = 20; // ajuste fino aqui
+  private healthBarOffsetX = 40; // ajuste fino aqui
 
   constructor(
     scene: Phaser.Scene,
@@ -28,7 +31,7 @@ export class EnemyVisualController {
       .setFlipX(config.flipX ?? false)
       .setDepth(config.depth ?? 2);
 
-    this.healthBar = new EnemyHealthBar(scene, x, y);
+    this.healthBar = new EnemyHealthBar(scene);
 
     enemy.onHealthChange((hp, maxHp) => {
       this.updateHealth(hp, maxHp);
@@ -55,12 +58,37 @@ export class EnemyVisualController {
   }
 
   setPosition(x: number, y: number) {
-    this.sprite.setPosition(x, y);
-    this.healthBar.setPosition(x, y);
+    const adjustedY = y + this.footOffset;
+
+    this.sprite.setPosition(x, adjustedY);
+
+    // barra na lateral esquerda, alinhada ao sprite
+    this.healthBar.setPosition(
+      x - this.sprite.displayWidth / 2 + this.healthBarOffsetX,
+      adjustedY - this.sprite.displayHeight / 2 + this.healthBarOffsetY,
+    );
   }
 
   setHighlighted(value: boolean) {
     this.healthBar.setHighlighted(value);
+  }
+
+  moveTo(x: number, y: number, scene: Phaser.Scene) {
+    const adjustedY = y + this.footOffset;
+
+    scene.tweens.add({
+      targets: this.sprite,
+      x,
+      y: adjustedY,
+      duration: 200,
+      ease: "Power2",
+    });
+
+    this.healthBar.moveTo(
+      x - this.sprite.displayWidth / 2 + this.healthBarOffsetX,
+      adjustedY - this.sprite.displayHeight / 2 + this.healthBarOffsetY,
+      scene,
+    );
   }
 
   destroy() {

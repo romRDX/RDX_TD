@@ -5,4 +5,6 @@ export type EnemyEntry = {
   enemy: Enemy;
   visual: EnemyVisualController;
   typeId: number;
+  row: number;
+  col: number;
 };

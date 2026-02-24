@@ -58,11 +58,16 @@ export class WaveRenderer {
     const world = this.gridToWorld(cell.row, cell.col);
 
     // ajuste fino vertical
-    const FOOT_ADJUST = 18; // teste entre 15 e 25
+    // const FOOT_ADJUST = 18; // teste entre 15 e 25
 
-    entry.visual.setPosition(world.x, world.y + FOOT_ADJUST);
+    // entry.visual.setPosition(world.x, world.y + FOOT_ADJUST);
+    entry.visual.setPosition(world.x, world.y);
 
     this.enemyGrid.addEnemy(entry.enemy, cell.row, cell.col);
+
+    entry.row = cell.row;
+    entry.col = cell.col;
+
     this.enemyManager.addEnemy(entry);
 
     console.log(

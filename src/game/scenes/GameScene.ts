@@ -187,24 +187,53 @@ export class GameScene extends Phaser.Scene {
       this.playerVisual,
       firstTarget.visual,
       (deadEnemy) => {
-        // encontra o entry correspondente
         const deadEntry = this.enemyManager.findByEnemy(deadEnemy);
         if (!deadEntry) return;
 
-        // remove do manager
-        this.enemyManager.removeEnemy(deadEntry);
+        // 🔹 1) guardar posição antes de qualquer alteração
+        const deadRow = deadEntry.row;
+        const deadCol = deadEntry.col;
 
-        // remove do grid
+        console.log("Dead position:", deadRow, deadCol);
+        console.log("Grid state:", this.enemyGrid);
+
+        // 🔹 2) remover do grid lógico
         this.enemyGrid.removeEnemyByInstance(deadEnemy);
 
-        // pega próximo alvo
+        // 🔹 3) resolver formação antes de remover do manager
+
+        this.enemyGrid.debugPrint();
+
+        const movements = this.enemyGrid.resolveRowShift(deadRow, deadCol);
+
+        console.log("Movements:", movements);
+
+        // 🔹 4) aplicar movimentos visuais e atualizar posição lógica
+        for (const move of movements) {
+          const entry = this.enemyManager.findByEnemy(move.enemy);
+          if (!entry) continue;
+
+          const { x, y } = gridToWorld(move.to.row, move.to.col);
+
+          entry.visual.moveTo(x, y, this);
+
+          entry.row = move.to.row;
+          entry.col = move.to.col;
+        }
+
+        // 🔹 5) agora sim remover do manager
+        this.enemyManager.removeEnemy(deadEntry);
+
+        // 🔹 6) destruir visual do morto
+        deadEntry.visual.destroy();
+
+        // 🔹 7) trocar alvo
         const nextTarget = this.enemyManager.getCurrentTarget();
         if (!nextTarget) {
           console.log("All enemies defeated");
           return;
         }
 
-        // troca alvo no presenter
         this.combatPresenter.setEnemy(nextTarget.enemy, nextTarget.visual);
       },
     );
