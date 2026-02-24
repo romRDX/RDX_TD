@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { EnemyHealthBar } from "./EnemyHealthBar";
+import type { Enemy } from "../entities/Enemy";
 
 type EnemyVisualConfig = {
   textureKey: string;
@@ -17,6 +18,7 @@ export class EnemyVisualController {
     x: number,
     y: number,
     config: EnemyVisualConfig,
+    enemy: Enemy,
   ) {
     this.sprite = scene.add.sprite(x, y, config.textureKey);
 
@@ -27,6 +29,13 @@ export class EnemyVisualController {
       .setDepth(config.depth ?? 2);
 
     this.healthBar = new EnemyHealthBar(scene, x, y);
+
+    enemy.onHealthChange((hp, maxHp) => {
+      this.updateHealth(hp, maxHp);
+    });
+
+    // renderiza estado inicial
+    this.updateHealth(enemy.hp, enemy.maxHp);
   }
 
   playIdle(animKey: string) {
@@ -48,6 +57,10 @@ export class EnemyVisualController {
   setPosition(x: number, y: number) {
     this.sprite.setPosition(x, y);
     this.healthBar.setPosition(x, y);
+  }
+
+  setHighlighted(value: boolean) {
+    this.healthBar.setHighlighted(value);
   }
 
   destroy() {

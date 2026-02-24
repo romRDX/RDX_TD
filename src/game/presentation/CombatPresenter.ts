@@ -29,9 +29,15 @@ export class CombatPresenter {
   }
 
   setEnemy(enemy: Enemy, enemyVisual: EnemyVisualController) {
+    // remove highlight do antigo
+    this.enemyVisual.setHighlighted(false);
+
     this.combat.setEnemy(enemy);
     this.enemyVisual = enemyVisual;
     this.enemyDead = false;
+
+    // destaca novo
+    this.enemyVisual.setHighlighted(true);
   }
 
   update(delta: number) {
@@ -39,7 +45,9 @@ export class CombatPresenter {
 
     const enemy = this.combat.enemy;
 
-    this.enemyVisual.updateHealth(enemy.hp, enemy.maxHp);
+    // this.enemyVisual.updateHealth(enemy.hp, enemy.maxHp);
+
+    this.enemyVisual.setHighlighted(true);
 
     // 👇 detectar morte UMA vez
     if (!this.enemyDead && enemy.hp <= 0) {

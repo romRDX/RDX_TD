@@ -27,6 +27,7 @@ export class GridHudRenderer {
     );
 
     g.strokeCircle(x, y, this.style.radius);
+    // g.strokeCircle(x, y + this.style.radius * 0.5, this.style.radius);
 
     g.setDepth(this.style.depth ?? 1);
   }

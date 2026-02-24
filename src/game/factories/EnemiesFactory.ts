@@ -57,12 +57,18 @@ export class EnemiesFactory {
     const enemy = new Enemy(proto.maxHp);
 
     // 2️⃣ Visual — sem posição
-    const visual = new EnemyVisualController(scene, 0, 0, {
-      textureKey: proto.textureKey,
-      scale: proto.scale,
-      flipX: proto.flipX ?? false,
-      depth: 2,
-    });
+    const visual = new EnemyVisualController(
+      scene,
+      0,
+      0,
+      {
+        textureKey: proto.textureKey,
+        scale: proto.scale,
+        flipX: proto.flipX ?? false,
+        depth: 2,
+      },
+      enemy /* 👈 linka o visual com o inimigo para updates de vida */,
+    );
 
     visual.playIdle(proto.textureKey);
 

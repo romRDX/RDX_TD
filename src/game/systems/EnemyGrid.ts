@@ -11,7 +11,7 @@ export class EnemyGrid {
 
   private cells: (Enemy | null)[][];
 
-  constructor(rows = 3, cols = 3) {
+  constructor(rows: number, cols: number) {
     this.rows = rows;
     this.cols = cols;
 
@@ -22,11 +22,6 @@ export class EnemyGrid {
 
   isValidPosition(row: number, col: number): boolean {
     return row >= 0 && row < this.rows && col >= 0 && col < this.cols;
-  }
-
-  isOccupied(row: number, col: number): boolean {
-    if (!this.isValidPosition(row, col)) return false;
-    return this.cells[row][col] !== null;
   }
 
   isEmpty(row: number, col: number): boolean {
@@ -42,30 +37,15 @@ export class EnemyGrid {
     return true;
   }
 
-  removeEnemy(row: number, col: number): Enemy | null {
-    if (!this.isValidPosition(row, col)) return null;
-
-    const enemy = this.cells[row][col];
-    this.cells[row][col] = null;
-    return enemy;
-  }
-
-  removeEnemyByInstance(enemy: Enemy): boolean {
+  removeEnemyByInstance(enemy: Enemy): void {
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         if (this.cells[r][c] === enemy) {
           this.cells[r][c] = null;
-          return true;
+          return;
         }
       }
     }
-
-    return false;
-  }
-
-  getEnemy(row: number, col: number): Enemy | null {
-    if (!this.isValidPosition(row, col)) return null;
-    return this.cells[row][col];
   }
 
   getAllEnemies(): Enemy[] {
@@ -84,13 +64,5 @@ export class EnemyGrid {
     }
 
     return result;
-  }
-
-  isFull(): boolean {
-    return this.getEmptyPositions().length === 0;
-  }
-
-  debugDump(): (Enemy | null)[][] {
-    return this.cells;
   }
 }

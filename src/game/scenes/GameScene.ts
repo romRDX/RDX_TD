@@ -9,17 +9,16 @@ import { createAnimations } from "../animations/createAnimations";
 
 import { defaultStageConfig } from "../stage/StageConfig";
 import { GridHudRenderer } from "../grid/GridHudRenderer";
-import { generateDiamondGrid } from "../grid/DiamondGridGenerator";
 
 import { PlayerVisualController } from "../visual/PlayerVisualController";
 import { CombatPresenter } from "../presentation/CombatPresenter";
-import { EnemiesFactory } from "../factories/EnemiesFactory";
 import { EnemyManager } from "../systems/EnemyManager";
-import type { EnemyEntry } from "../types/EnemyEntry";
+
+import { WaveRenderer } from "../systems/WaveRenderer";
+import type { WaveBlueprint } from "../types/WaveBlueprint";
 
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
-const KOBOLD_FOOT_OFFSET = 0;
 
 export class GameScene extends Phaser.Scene {
   private enemyGrid!: EnemyGrid;
@@ -68,57 +67,93 @@ export class GameScene extends Phaser.Scene {
       depth: 1,
     });
 
-    const cells = generateDiamondGrid(stageConfig.grid.radius);
+    const gridSize = 7;
 
-    const halfW = stageConfig.grid.cellWidth / 2;
-    const halfH = stageConfig.grid.cellHeight / 2;
+    // const gridToWorld = (row: number, col: number) => {
+    //   return {
+    //     x: stageConfig.grid.originX + col * stageConfig.grid.cellWidth,
+    //     y: stageConfig.grid.originY + row * stageConfig.grid.cellHeight,
+    //   };
+    // };
 
-    const gridToWorld = (row: number, col: number) => ({
-      x: stageConfig.grid.originX + (col - row) * halfW,
-      y: stageConfig.grid.originY + (col + row) * halfH,
-    });
+    // for (let row = 0; row < gridSize; row++) {
+    //   for (let col = 0; col < gridSize; col++) {
+    //     const { x, y } = gridToWorld(row, col);
+    //     this.gridHud.drawCell(x, y);
+    //   }
+    // }
 
-    for (const { row, col } of cells) {
-      const { x, y } = gridToWorld(row, col);
-      this.gridHud.drawCell(x, y);
+    const gridToWorld = (row: number, col: number) => {
+      const baseX = stageConfig.grid.originX + col * stageConfig.grid.cellWidth;
+      const baseY =
+        stageConfig.grid.originY + row * stageConfig.grid.cellHeight;
+
+      const isOddColumn = col % 2 === 1;
+
+      const verticalOffset = isOddColumn ? -stageConfig.grid.cellHeight / 2 : 0;
+
+      return {
+        x: baseX,
+        y: baseY + verticalOffset,
+      };
+    };
+
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        const isOddColumn = col % 2 === 1;
+
+        // colunas ímpares têm uma célula a menos
+        if (isOddColumn && row === 0) {
+          continue; // pula a primeira célula
+        }
+
+        const { x, y } = gridToWorld(row, col);
+        this.gridHud.drawCell(x, y);
+      }
     }
 
-    // GRID LÓGICO
-    this.enemyGrid = new EnemyGrid(
-      stageConfig.grid.rows,
-      stageConfig.grid.cols,
-    );
+    this.enemyGrid = new EnemyGrid(7, 7);
 
     this.enemyManager = new EnemyManager();
 
-    const enemies: EnemyEntry[] = [];
-
-    for (let i = 0; i < 3; i++) {
-      enemies.push(
-        EnemiesFactory.create({
-          scene: this,
-          enemyTypeId: 1,
-        }),
-      );
-    }
-
-    const freeCells = this.enemyGrid.getEmptyPositions();
-
-    enemies.forEach((entry, index) => {
-      const cell = freeCells[index];
-      if (!cell) return;
-
-      const world = gridToWorld(cell.row, cell.col);
-
-      // posiciona visual
-      entry.visual.setPosition(world.x, world.y + KOBOLD_FOOT_OFFSET);
-
-      // registra no grid
-      this.enemyGrid.addEnemy(entry.enemy, cell.row, cell.col);
-
-      // registra no manager
-      this.enemyManager.addEnemy(entry);
+    const waveRenderer = new WaveRenderer({
+      scene: this,
+      enemyGrid: this.enemyGrid,
+      enemyManager: this.enemyManager,
+      gridToWorld,
+      cellRadius: 26, // 👈 mesmo valor usado no GridHudRenderer
     });
+
+    const bluePrintData = [
+      // { enemyTypeId: 1, position: { col: 0, row: 0 } },
+      // { enemyTypeId: 1, position: { col: 2, row: 2 } },
+      // { enemyTypeId: 1, position: { col: 3, row: 3 } },
+      // { enemyTypeId: 1, position: { col: 4, row: 4 } },
+      // { enemyTypeId: 1, position: { col: 5, row: 5 } },
+      // { enemyTypeId: 1, position: { col: 6, row: 6 } },
+
+      { enemyTypeId: 1, position: { col: 0, row: 3 } },
+      { enemyTypeId: 1, position: { col: 1, row: 3 } },
+      { enemyTypeId: 1, position: { col: 2, row: 3 } },
+    ];
+
+    // const bluePrintData = [
+    //   { enemyTypeId: 1, position: { row: 0, col: 2 } },
+    //   { enemyTypeId: 1, position: { row: 1, col: 2 } },
+    //   { enemyTypeId: 1, position: { row: 2, col: 2 } },
+    // ];
+
+    const wave: WaveBlueprint = {
+      units: bluePrintData,
+    };
+
+    waveRenderer.renderWave(wave);
+
+    console.log(
+      "Enemies in manager:",
+      this.enemyManager.getAllEnemies().length,
+    );
+    console.log("Enemies in grid:", this.enemyGrid.getAllEnemies().length);
 
     // PLAYER VISUAL
     this.playerVisual = new PlayerVisualController(
@@ -131,7 +166,7 @@ export class GameScene extends Phaser.Scene {
         attackAnim: "knight-attack",
         attackLoopAnim: "knight-attack-loop",
         scale: 1.8,
-        depth: 2,
+        depth: 3,
       },
     );
 

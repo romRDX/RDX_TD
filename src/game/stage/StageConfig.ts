@@ -1,6 +1,4 @@
 export type GridStageConfig = {
-  rows: number;
-  cols: number;
   cellWidth: number;
   cellHeight: number;
   originX: number;
@@ -16,12 +14,10 @@ export type StageConfig = {
 // depois isso vira factory / loader
 export const defaultStageConfig: StageConfig = {
   grid: {
-    rows: 3,
-    cols: 3,
-    cellWidth: 130,
-    cellHeight: 95,
-    originX: 520,
-    originY: 360,
+    cellWidth: 85,
+    cellHeight: 85,
+    originX: 350,
+    originY: 80,
     radius: 3,
   },
 };
