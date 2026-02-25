@@ -4,24 +4,42 @@ export type CharacterStats = {
   attackSpeed: number; // ataques por segundo
 };
 
+type HealthListener = (hp: number, maxHp: number) => void;
+
 export class Character {
-  hp: number;
-  stats: CharacterStats;
+  public hp: number;
+  public readonly stats: CharacterStats;
+
+  private listeners: HealthListener[] = [];
 
   constructor(stats: CharacterStats) {
     this.stats = stats;
     this.hp = stats.maxHp;
   }
 
-  /**
-   * Atualização passiva do personagem.
-   * NÃO aplica ataque.
-   * O ataque é controlado pelo GameScene (hit frame da animação).
-   */
   update(_delta: number) {
     // reservado para:
-    // buffs / debuffs
+    // buffs
+    // debuffs
     // regen
-    // efeitos temporais futuros
+  }
+
+  takeDamage(amount: number) {
+    this.hp = Math.max(0, this.hp - amount);
+    this.notifyHealthChange();
+  }
+
+  isDead(): boolean {
+    return this.hp <= 0;
+  }
+
+  onHealthChange(listener: HealthListener) {
+    this.listeners.push(listener);
+  }
+
+  private notifyHealthChange() {
+    for (const listener of this.listeners) {
+      listener(this.hp, this.stats.maxHp);
+    }
   }
 }

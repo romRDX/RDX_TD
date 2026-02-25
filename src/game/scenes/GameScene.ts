@@ -16,6 +16,7 @@ import { EnemyManager } from "../systems/EnemyManager";
 
 import { WaveRenderer } from "../systems/WaveRenderer";
 import type { WaveBlueprint } from "../types/WaveBlueprint";
+import { HealthBar } from "../visual/HealthBar";
 
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
@@ -25,11 +26,14 @@ export class GameScene extends Phaser.Scene {
   private enemyManager!: EnemyManager;
   private combatPresenter!: CombatPresenter;
 
+  private character!: Character;
   private playerVisual!: PlayerVisualController;
   private gridHud!: GridHudRenderer;
 
   private lastAttackTime = 0;
   private attackSpeed = 1;
+
+  private isGameOver = false;
 
   constructor() {
     super("GameScene");
@@ -170,17 +174,56 @@ export class GameScene extends Phaser.Scene {
       },
     );
 
+    const playerHealthBar = new HealthBar(this, {
+      width: 80, // 👈 AJUSTE AQUI
+      height: 12, // 👈 AJUSTE AQUI
+      fillColor: 0x00cc66,
+      orientation: "horizontal", // 👈 IMPORTANTE
+    });
+
+    playerHealthBar.setPosition(
+      215, // centro do player
+      GROUND_Y + KNIGHT_FOOT_OFFSET - 20, // 👈 AJUSTE DISTÂNCIA PARA BAIXO AQUI
+    );
+
     // COMBATE
-    const character = new Character({
+    this.character = new Character({
       maxHp: 100,
       damage: 10,
       attackSpeed: this.attackSpeed,
     });
 
+    this.time.addEvent({
+      delay: 2000, // 2 segundos
+      loop: true,
+      callback: () => {
+        console.log("Player HP before:", this.character.hp);
+        this.character.takeDamage(10);
+        console.log("Player HP after:", this.character.hp);
+      },
+    });
+
+    this.character.onHealthChange((hp, maxHp) => {
+      playerHealthBar.update(hp / maxHp);
+    });
+
+    this.character.onHealthChange((hp, maxHp) => {
+      if (hp <= 0 && !this.isGameOver) {
+        this.isGameOver = true;
+
+        console.log("Player died");
+
+        // parar animação atual
+        this.playerVisual.die();
+      }
+    });
+
+    playerHealthBar.update(1);
+
     const firstTarget = this.enemyManager.getCurrentTarget();
     if (!firstTarget) throw new Error("No enemies available");
 
-    const combat = new CombatSystem(character, firstTarget.enemy);
+    const combat = new CombatSystem(this.character, firstTarget.enemy);
 
     this.combatPresenter = new CombatPresenter(
       combat,
@@ -240,7 +283,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    if (this.isGameOver) {
+      return;
+    }
+
     this.combatPresenter.update(delta);
+
+    if (this.character?.isDead?.()) {
+      return;
+    }
 
     const attackIntervalMs = 1000 / this.attackSpeed;
     const attackIntervalSec = attackIntervalMs / 1000;
@@ -257,7 +308,10 @@ export class GameScene extends Phaser.Scene {
 
     this.playerVisual.setAttackSpeed(animationSpeedMultiplier);
 
-    if (time - this.lastAttackTime >= attackIntervalMs) {
+    if (
+      !this.character.isDead() &&
+      time - this.lastAttackTime >= attackIntervalMs
+    ) {
       this.lastAttackTime = time;
       this.playerVisual.startAttack();
     }

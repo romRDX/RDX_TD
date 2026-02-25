@@ -13,6 +13,7 @@ export class PlayerVisualController {
   private attacking = false;
   private onHitCallback?: () => void;
   private config: PlayerVisualConfig;
+  private isDead = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -46,7 +47,7 @@ export class PlayerVisualController {
         anim: Phaser.Animations.Animation,
         frame: Phaser.Animations.AnimationFrame,
       ) => {
-        if (frame.index === 6) {
+        if (!this.isDead && frame.index === 6) {
           if (this.onHitCallback) {
             this.onHitCallback();
           }
@@ -77,6 +78,8 @@ export class PlayerVisualController {
   // API
   // ==========================
   startAttack() {
+    if (this.isDead) return;
+
     if (this.attacking) return;
     this.attacking = true;
     this.sprite.play(this.config.attackAnim);
@@ -91,10 +94,22 @@ export class PlayerVisualController {
   }
 
   onHit(cb: () => void) {
+    if (this.isDead) return;
+
     this.onHitCallback = cb;
   }
 
   getSprite() {
     return this.sprite;
+  }
+
+  die() {
+    this.isDead = true;
+    this.attacking = false;
+
+    this.sprite.anims.stop();
+
+    // opcional: deixar parado
+    this.sprite.setFrame(0);
   }
 }

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { EnemyHealthBar } from "./EnemyHealthBar";
+import { HealthBar } from "./HealthBar";
 import type { Enemy } from "../entities/Enemy";
 
 type EnemyVisualConfig = {
@@ -11,7 +11,7 @@ type EnemyVisualConfig = {
 
 export class EnemyVisualController {
   private sprite: Phaser.GameObjects.Sprite;
-  private healthBar: EnemyHealthBar;
+  private healthBar: HealthBar;
   private footOffset = 18; // ajuste fino aqui
   private healthBarOffsetY = 20; // ajuste fino aqui
   private healthBarOffsetX = 40; // ajuste fino aqui
@@ -31,7 +31,11 @@ export class EnemyVisualController {
       .setFlipX(config.flipX ?? false)
       .setDepth(config.depth ?? 2);
 
-    this.healthBar = new EnemyHealthBar(scene);
+    this.healthBar = new HealthBar(scene, {
+      width: 6,
+      height: 40,
+      fillColor: 0xff3333, // vermelho para inimigos
+    });
 
     enemy.onHealthChange((hp, maxHp) => {
       this.updateHealth(hp, maxHp);
