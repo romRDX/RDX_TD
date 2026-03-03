@@ -91,6 +91,10 @@ export class PlayerVisualController {
 
   stopAttack() {
     this.attacking = false;
+
+    if (!this.isDead) {
+      this.sprite.play(this.config.idleAnim);
+    }
   }
 
   onHit(cb: () => void) {

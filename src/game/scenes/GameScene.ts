@@ -15,6 +15,7 @@ import { CombatPresenter } from "../presentation/CombatPresenter";
 import { EnemyManager } from "../systems/EnemyManager";
 
 import { WaveRenderer } from "../systems/WaveRenderer";
+import { WaveController } from "../systems/WaveController";
 import type { WaveBlueprint } from "../types/WaveBlueprint";
 import { HealthBar } from "../visual/HealthBar";
 
@@ -36,21 +37,23 @@ export class GameScene extends Phaser.Scene {
   private attackSpeed = 1;
 
   private isGameOver = false;
+  // private isCombatActive = false;
 
-  private currentWaveIndex = 0;
+  // private currentWaveIndex = 0;
   private waveRenderer!: WaveRenderer;
+  private waveController!: WaveController;
   private gridToWorld!: (row: number, col: number) => { x: number; y: number };
 
-  private spawnCurrentWave() {
-    const wave = WAVES[this.currentWaveIndex];
+  // private spawnCurrentWave() {
+  //   // const wave = WAVES[this.currentWaveIndex];
 
-    if (!wave) {
-      console.log("All waves completed");
-      return;
-    }
+  //   if (!wave) {
+  //     console.log("All waves completed");
+  //     return;
+  //   }
 
-    this.waveRenderer.renderWave(wave);
-  }
+  //   this.waveRenderer.renderWave(wave);
+  // }
 
   constructor() {
     super("GameScene");
@@ -160,7 +163,17 @@ export class GameScene extends Phaser.Scene {
       cellRadius: 26, // 👈 mesmo valor usado no GridHudRenderer
     });
 
-    this.spawnCurrentWave();
+    // this.spawnCurrentWave();
+
+    // this.isCombatActive = true;
+
+    this.waveController = new WaveController(
+      WAVES,
+      this.waveRenderer,
+      this.enemyManager,
+    );
+
+    this.waveController.start();
 
     console.log(
       "Enemies in manager:",
@@ -197,8 +210,8 @@ export class GameScene extends Phaser.Scene {
 
     // COMBATE
     this.character = new Character({
-      maxHp: 100,
-      damage: 10,
+      maxHp: 10000,
+      damage: 50,
       attackSpeed: this.attackSpeed,
     });
 
@@ -274,8 +287,35 @@ export class GameScene extends Phaser.Scene {
         if (!nextTarget) {
           console.log("Wave cleared");
 
-          this.currentWaveIndex++;
-          this.spawnCurrentWave();
+          // this.currentWaveIndex++;
+          // this.spawnCurrentWave();
+
+          const hasMoreWaves = this.waveController.handleWaveCleared();
+
+          if (!hasMoreWaves) {
+            console.log("All waves completed");
+            this.playerVisual.stopAttack();
+            return;
+          }
+
+          const newTarget = this.enemyManager.getCurrentTarget();
+          if (!newTarget) {
+            console.log("All waves completed");
+            // this.isCombatActive = false;
+            this.playerVisual.stopAttack();
+            return;
+          }
+
+          // 🔥 recriar sistema de combate
+          const newCombat = new CombatSystem(this.character, newTarget.enemy);
+
+          this.combatPresenter = new CombatPresenter(
+            newCombat,
+            this.playerVisual,
+            newTarget.visual,
+            this.combatPresenter["onEnemyDeath"], // reaproveita callback
+          );
+
           return;
         }
 
@@ -312,8 +352,15 @@ export class GameScene extends Phaser.Scene {
 
     this.playerVisual.setAttackSpeed(animationSpeedMultiplier);
 
+    const currentTarget = this.enemyManager.getCurrentTarget();
+
+    if (!currentTarget) {
+      this.playerVisual.stopAttack();
+    }
+
     if (
       !this.character.isDead() &&
+      currentTarget &&
       time - this.lastAttackTime >= attackIntervalMs
     ) {
       this.lastAttackTime = time;
