@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import { Enemy } from "../entities/Enemy";
+import type { EnemyStats } from "../entities/Enemy";
 import { EnemyVisualController } from "../visual/EnemyVisualController";
 import type { EnemyEntry } from "../types/EnemyEntry";
 
@@ -16,7 +17,7 @@ export type EnemyTypeId = number;
  */
 type EnemyPrototype = {
   id: EnemyTypeId;
-  maxHp: number;
+  stats: EnemyStats;
   textureKey: string;
   scale: number;
   flipX?: boolean;
@@ -29,14 +30,16 @@ type EnemyPrototype = {
 const ENEMY_PROTOTYPES: Record<EnemyTypeId, EnemyPrototype> = {
   1: {
     id: 1,
-    maxHp: 250,
+    stats: {
+      maxHp: 250,
+      damage: 5,
+      attackSpeed: 0.8,
+      archetype: "melee",
+    },
     textureKey: "kobold-idle",
     scale: 1,
     flipX: true,
   },
-  // futuramente:
-  // 2: { goblin... }
-  // 3: { skeleton... }
 };
 
 export class EnemiesFactory {
@@ -54,7 +57,7 @@ export class EnemiesFactory {
     }
 
     // 1️⃣ Enemy lógico — sempre NOVO
-    const enemy = new Enemy(proto.maxHp);
+    const enemy = new Enemy(proto.stats);
 
     // 2️⃣ Visual — sem posição
     const visual = new EnemyVisualController(
@@ -76,6 +79,8 @@ export class EnemiesFactory {
       enemy,
       visual,
       typeId: proto.id,
+      row: -1, // 👈 posição ainda não definida
+      col: -1, // 👈 posição ainda não definida
     };
   }
 }

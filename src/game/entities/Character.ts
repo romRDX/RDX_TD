@@ -15,6 +15,9 @@ export class Character {
   constructor(stats: CharacterStats) {
     this.stats = stats;
     this.hp = stats.maxHp;
+
+    // 🔹 garante que UI já receba valor inicial
+    this.notifyHealthChange();
   }
 
   update(_delta: number) {
@@ -25,6 +28,8 @@ export class Character {
   }
 
   takeDamage(amount: number) {
+    if (this.isDead()) return; // 🔹 evita dano após morte
+
     this.hp = Math.max(0, this.hp - amount);
     this.notifyHealthChange();
   }
@@ -35,6 +40,10 @@ export class Character {
 
   onHealthChange(listener: HealthListener) {
     this.listeners.push(listener);
+
+    // 🔹 opcional mas recomendado:
+    // garante que novo listener já receba estado atual
+    listener(this.hp, this.stats.maxHp);
   }
 
   private notifyHealthChange() {

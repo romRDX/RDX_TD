@@ -42,7 +42,7 @@ export class EnemyVisualController {
     });
 
     // renderiza estado inicial
-    this.updateHealth(enemy.hp, enemy.maxHp);
+    this.updateHealth(enemy.hp, enemy.stats.maxHp);
   }
 
   playIdle(animKey: string) {

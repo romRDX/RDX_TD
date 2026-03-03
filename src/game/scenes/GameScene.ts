@@ -18,6 +18,8 @@ import { WaveRenderer } from "../systems/WaveRenderer";
 import type { WaveBlueprint } from "../types/WaveBlueprint";
 import { HealthBar } from "../visual/HealthBar";
 
+import { WAVES } from "../stage/WaveConfig";
+
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
 
@@ -34,6 +36,21 @@ export class GameScene extends Phaser.Scene {
   private attackSpeed = 1;
 
   private isGameOver = false;
+
+  private currentWaveIndex = 0;
+  private waveRenderer!: WaveRenderer;
+  private gridToWorld!: (row: number, col: number) => { x: number; y: number };
+
+  private spawnCurrentWave() {
+    const wave = WAVES[this.currentWaveIndex];
+
+    if (!wave) {
+      console.log("All waves completed");
+      return;
+    }
+
+    this.waveRenderer.renderWave(wave);
+  }
 
   constructor() {
     super("GameScene");
@@ -87,13 +104,13 @@ export class GameScene extends Phaser.Scene {
     //   }
     // }
 
-    const gridToWorld = (row: number, col: number) => {
+    this.gridToWorld = (row: number, col: number) => {
       const baseX = stageConfig.grid.originX + col * stageConfig.grid.cellWidth;
+
       const baseY =
         stageConfig.grid.originY + row * stageConfig.grid.cellHeight;
 
       const isOddColumn = col % 2 === 1;
-
       const verticalOffset = isOddColumn ? -stageConfig.grid.cellHeight / 2 : 0;
 
       return {
@@ -101,6 +118,21 @@ export class GameScene extends Phaser.Scene {
         y: baseY + verticalOffset,
       };
     };
+
+    // const gridToWorld = (row: number, col: number) => {
+    //   const baseX = stageConfig.grid.originX + col * stageConfig.grid.cellWidth;
+    //   const baseY =
+    //     stageConfig.grid.originY + row * stageConfig.grid.cellHeight;
+
+    //   const isOddColumn = col % 2 === 1;
+
+    //   const verticalOffset = isOddColumn ? -stageConfig.grid.cellHeight / 2 : 0;
+
+    //   return {
+    //     x: baseX,
+    //     y: baseY + verticalOffset,
+    //   };
+    // };
 
     for (let row = 0; row < gridSize; row++) {
       for (let col = 0; col < gridSize; col++) {
@@ -111,7 +143,7 @@ export class GameScene extends Phaser.Scene {
           continue; // pula a primeira célula
         }
 
-        const { x, y } = gridToWorld(row, col);
+        const { x, y } = this.gridToWorld(row, col);
         this.gridHud.drawCell(x, y);
       }
     }
@@ -120,38 +152,15 @@ export class GameScene extends Phaser.Scene {
 
     this.enemyManager = new EnemyManager();
 
-    const waveRenderer = new WaveRenderer({
+    this.waveRenderer = new WaveRenderer({
       scene: this,
       enemyGrid: this.enemyGrid,
       enemyManager: this.enemyManager,
-      gridToWorld,
+      gridToWorld: this.gridToWorld,
       cellRadius: 26, // 👈 mesmo valor usado no GridHudRenderer
     });
 
-    const bluePrintData = [
-      // { enemyTypeId: 1, position: { col: 0, row: 0 } },
-      // { enemyTypeId: 1, position: { col: 2, row: 2 } },
-      // { enemyTypeId: 1, position: { col: 3, row: 3 } },
-      // { enemyTypeId: 1, position: { col: 4, row: 4 } },
-      // { enemyTypeId: 1, position: { col: 5, row: 5 } },
-      // { enemyTypeId: 1, position: { col: 6, row: 6 } },
-
-      { enemyTypeId: 1, position: { col: 0, row: 3 } },
-      { enemyTypeId: 1, position: { col: 1, row: 3 } },
-      { enemyTypeId: 1, position: { col: 2, row: 3 } },
-    ];
-
-    // const bluePrintData = [
-    //   { enemyTypeId: 1, position: { row: 0, col: 2 } },
-    //   { enemyTypeId: 1, position: { row: 1, col: 2 } },
-    //   { enemyTypeId: 1, position: { row: 2, col: 2 } },
-    // ];
-
-    const wave: WaveBlueprint = {
-      units: bluePrintData,
-    };
-
-    waveRenderer.renderWave(wave);
+    this.spawnCurrentWave();
 
     console.log(
       "Enemies in manager:",
@@ -191,16 +200,6 @@ export class GameScene extends Phaser.Scene {
       maxHp: 100,
       damage: 10,
       attackSpeed: this.attackSpeed,
-    });
-
-    this.time.addEvent({
-      delay: 2000, // 2 segundos
-      loop: true,
-      callback: () => {
-        console.log("Player HP before:", this.character.hp);
-        this.character.takeDamage(10);
-        console.log("Player HP after:", this.character.hp);
-      },
     });
 
     this.character.onHealthChange((hp, maxHp) => {
@@ -256,7 +255,7 @@ export class GameScene extends Phaser.Scene {
           const entry = this.enemyManager.findByEnemy(move.enemy);
           if (!entry) continue;
 
-          const { x, y } = gridToWorld(move.to.row, move.to.col);
+          const { x, y } = this.gridToWorld(move.to.row, move.to.col);
 
           entry.visual.moveTo(x, y, this);
 
@@ -273,7 +272,10 @@ export class GameScene extends Phaser.Scene {
         // 🔹 7) trocar alvo
         const nextTarget = this.enemyManager.getCurrentTarget();
         if (!nextTarget) {
-          console.log("All enemies defeated");
+          console.log("Wave cleared");
+
+          this.currentWaveIndex++;
+          this.spawnCurrentWave();
           return;
         }
 
@@ -292,6 +294,8 @@ export class GameScene extends Phaser.Scene {
     if (this.character?.isDead?.()) {
       return;
     }
+
+    // Inimigos atacam o player
 
     const attackIntervalMs = 1000 / this.attackSpeed;
     const attackIntervalSec = attackIntervalMs / 1000;
@@ -314,6 +318,21 @@ export class GameScene extends Phaser.Scene {
     ) {
       this.lastAttackTime = time;
       this.playerVisual.startAttack();
+    }
+
+    // Inimigos atacam o player
+    for (const entry of this.enemyManager.getAllEnemies()) {
+      const enemy = entry.enemy;
+
+      enemy.update(delta, this.character);
+
+      if (enemy.stats.archetype === "melee") {
+        // depois vamos validar se está na linha de frente
+      }
+
+      if (enemy.stats.archetype === "ranged") {
+        // ranged sempre pode atacar (por enquanto)
+      }
     }
   }
 }

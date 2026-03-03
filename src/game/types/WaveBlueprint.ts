@@ -12,5 +12,9 @@ export type WaveUnit = {
 };
 
 export type WaveBlueprint = {
-  units: WaveUnit[];
+  id: number;
+  units: {
+    enemyTypeId: number;
+    position: { row: number; col: number };
+  }[];
 };
