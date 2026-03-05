@@ -5,6 +5,8 @@ export class CombatSystem {
   character: Character;
   enemy: Enemy | null = null;
 
+  private attackTimer = 0;
+
   constructor(character: Character) {
     this.character = character;
   }
@@ -18,20 +20,36 @@ export class CombatSystem {
    */
   update(delta: number) {
     this.character.update(delta);
+
+    if (!this.enemy) return;
+    if (this.enemy.isDead()) return;
+
+    const attackInterval = 1000 / this.character.stats.attackSpeed;
+
+    this.attackTimer += delta;
+
+    if (this.attackTimer >= attackInterval) {
+      this.attackTimer = 0;
+
+      this.character.performAttack();
+    }
   }
 
   /**
    * Aplica dano exatamente no hit frame da animação.
    */
-  applyAttack() {
-    if (!this.enemy) return;
-    if (this.enemy.isDead()) return;
+  public applyAttack() {
+    const enemy = this.enemy;
 
-    console.log("Applying attack to enemy:", this.enemy);
+    if (!enemy) return;
 
-    const hpBefore = this.enemy.hp;
+    if (enemy.isDead()) return;
 
-    this.enemy.takeDamage(this.character.stats.damage);
+    console.log("Applying attack to enemy:", enemy);
+
+    const hpBefore = enemy.hp;
+
+    enemy.takeDamage(this.character.stats.damage);
 
     console.log(
       "Enemy HP before:",
@@ -39,7 +57,6 @@ export class CombatSystem {
       "damage:",
       this.character.stats.damage,
     );
-
-    console.log("Enemy HP after:", this.enemy.hp);
+    console.log("Enemy HP after:", enemy.hp);
   }
 }

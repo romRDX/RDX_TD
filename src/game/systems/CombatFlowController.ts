@@ -1,9 +1,8 @@
 import { Enemy } from "../entities/Enemy";
+import type { EnemyEntry } from "../types/EnemyEntry";
 import { EnemyGrid } from "./EnemyGrid";
 import { EnemyManager } from "./EnemyManager";
 import { WaveController } from "./WaveController";
-import { CombatSystem } from "./CombatSystem";
-import { CombatPresenter } from "../presentation/CombatPresenter";
 import { PlayerVisualController } from "../visual/PlayerVisualController";
 import type { Character } from "../entities/Character";
 
@@ -22,7 +21,7 @@ export class CombatFlowController {
     deadEnemy: Enemy,
     playerCharacter: Character,
     playerVisual: PlayerVisualController,
-  ): CombatPresenter | null {
+  ): EnemyEntry | null {
     const deadEntry = this.enemyManager.findByEnemy(deadEnemy);
     if (!deadEntry) return null;
 
@@ -57,7 +56,7 @@ export class CombatFlowController {
     const nextTarget = this.enemyManager.getCurrentTarget();
 
     // ================================
-    // CASO 1: wave terminou
+    // CASO 1: não há inimigos
     // ================================
     if (!nextTarget) {
       const hasMoreWaves = this.waveController.handleWaveCleared();
@@ -67,42 +66,12 @@ export class CombatFlowController {
         return null;
       }
 
-      const newTarget = this.enemyManager.getCurrentTarget();
-      if (!newTarget) return null;
-
-      const newCombat = new CombatSystem(playerCharacter);
-      newCombat.setEnemy(newTarget.enemy);
-
-      const presenter = new CombatPresenter(
-        newCombat,
-        playerVisual,
-        newTarget.visual,
-        (enemy) => this.handleEnemyDeath(enemy, playerCharacter, playerVisual),
-      );
-
-      // 🔥 REGISTRA LISTENER DE MORTE
-      presenter.setEnemy(newTarget.enemy, newTarget.visual);
-
-      return presenter;
+      return this.enemyManager.getCurrentTarget();
     }
 
     // ================================
-    // CASO 2: próximo inimigo da fila
+    // CASO 2: ainda há inimigos
     // ================================
-
-    const newCombat = new CombatSystem(playerCharacter);
-    newCombat.setEnemy(nextTarget.enemy);
-
-    const presenter = new CombatPresenter(
-      newCombat,
-      playerVisual,
-      nextTarget.visual,
-      (enemy) => this.handleEnemyDeath(enemy, playerCharacter, playerVisual),
-    );
-
-    // 🔥 REGISTRA LISTENER DE MORTE
-    presenter.setEnemy(nextTarget.enemy, nextTarget.visual);
-
-    return presenter;
+    return nextTarget;
   }
 }

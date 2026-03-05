@@ -27,6 +27,10 @@ export class Character {
     // regen
   }
 
+  performAttack() {
+    // apenas sinaliza que o ataque começou
+  }
+
   takeDamage(amount: number) {
     if (this.isDead()) return; // 🔹 evita dano após morte
 

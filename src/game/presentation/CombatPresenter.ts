@@ -5,7 +5,11 @@ import { Enemy } from "../entities/Enemy";
 
 export class CombatPresenter {
   private combat: CombatSystem;
-  private enemyVisual: EnemyVisualController;
+  private playerVisual: PlayerVisualController;
+
+  private enemy: Enemy | null = null;
+  private enemyVisual: EnemyVisualController | null = null;
+
   private onEnemyDeath?: (enemy: Enemy) => void;
 
   private hitHandler: () => void;
@@ -13,57 +17,65 @@ export class CombatPresenter {
   constructor(
     combat: CombatSystem,
     playerVisual: PlayerVisualController,
-    enemyVisual: EnemyVisualController,
     onEnemyDeath?: (enemy: Enemy) => void,
   ) {
     this.combat = combat;
-    this.enemyVisual = enemyVisual;
+    this.playerVisual = playerVisual;
     this.onEnemyDeath = onEnemyDeath;
 
     this.hitHandler = () => {
-      const enemy = this.combat.enemy;
-
-      if (!enemy) return;
-      if (enemy.isDead()) return;
+      if (!this.enemy) return;
+      if (this.enemy.isDead()) return;
 
       console.log("HIT FRAME → applying damage");
 
       this.combat.applyAttack();
 
-      // inimigo pode ter morrido com este hit
-      if (enemy.isDead()) return;
-
-      this.enemyVisual.playHit();
+      if (this.enemyVisual) {
+        this.enemyVisual.playHit();
+      }
     };
 
     playerVisual.onHit(this.hitHandler);
   }
 
-  destroy(playerVisual: PlayerVisualController) {
-    playerVisual.offHit(this.hitHandler);
+  destroy() {
+    this.playerVisual.offHit(this.hitHandler);
   }
 
   setEnemy(enemy: Enemy, enemyVisual: EnemyVisualController) {
     console.log("CombatPresenter.setEnemy →", enemy);
 
-    this.combat.setEnemy(enemy);
+    this.enemy = enemy;
     this.enemyVisual = enemyVisual;
+
+    this.combat.setEnemy(enemy);
 
     this.enemyVisual.setHighlighted(true);
 
-    // 🔥 REGISTRA O LISTENER DE MORTE
+    this.playerVisual.startAttack();
+
     enemy.onDeath(() => {
       console.log("💀 CombatPresenter received enemy death");
+
+      this.enemy = null;
 
       this.onEnemyDeath?.(enemy);
     });
   }
 
+  clearEnemy() {
+    this.enemy = null;
+    this.enemyVisual = null;
+
+    this.combat.setEnemy(null);
+  }
+
   update(delta: number) {
     this.combat.update(delta);
 
-    if (!this.combat.enemy) return;
-
-    this.enemyVisual.setHighlighted(true);
+    if (this.enemyVisual) {
+      this.enemyVisual.setHighlighted(true);
+    }
   }
 }

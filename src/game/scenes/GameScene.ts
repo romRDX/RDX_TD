@@ -38,8 +38,8 @@ export class GameScene extends Phaser.Scene {
   private playerVisual!: PlayerVisualController;
   private gridHud!: GridHudRenderer;
 
-  private lastAttackTime = 0;
-  private attackSpeed = 1;
+  // private lastAttackTime = 0;
+  // private attackSpeed = 1;
 
   private isGameOver = false;
   // private isCombatActive = false;
@@ -225,7 +225,7 @@ export class GameScene extends Phaser.Scene {
     this.character = new Character({
       maxHp: 10000,
       damage: 50,
-      attackSpeed: this.attackSpeed,
+      attackSpeed: 1, // ataques por segundo
     });
 
     this.character.onHealthChange((hp, maxHp) => {
@@ -250,45 +250,33 @@ export class GameScene extends Phaser.Scene {
 
     // const combat = new CombatSystem(this.character, firstTarget.enemy);
     this.combatSystem = new CombatSystem(this.character);
-    this.combatSystem.setEnemy(firstTarget.enemy);
-
-    if (this.combatPresenter) {
-      this.combatPresenter.destroy(this.playerVisual);
-    }
 
     this.combatPresenter = new CombatPresenter(
       this.combatSystem,
       this.playerVisual,
-      firstTarget.visual,
       (deadEnemy) => {
-        console.log("GAME SCENE DEATH CALLBACK");
-
-        if (this.combatPresenter) {
-          this.combatPresenter.destroy(this.playerVisual);
-        }
-
-        const newPresenter = this.combatFlow.handleEnemyDeath(
+        const newTarget = this.combatFlow.handleEnemyDeath(
           deadEnemy,
           this.character,
           this.playerVisual,
         );
 
-        if (!newPresenter) {
-          console.log("NO TARGET AVAILABLE");
-
-          this.combatPresenter = null;
+        if (!newTarget) {
           this.playerVisual.stopAttack();
+
+          if (this.combatPresenter) {
+            this.combatPresenter.clearEnemy();
+          }
 
           return;
         }
 
-        console.log("NEW PRESENTER:", newPresenter);
-
-        this.combatPresenter = newPresenter;
+        if (this.combatPresenter) {
+          this.combatPresenter.setEnemy(newTarget.enemy, newTarget.visual);
+        }
       },
     );
 
-    // 🔥 REGISTRA O PRIMEIRO INIMIGO
     this.combatPresenter.setEnemy(firstTarget.enemy, firstTarget.visual);
   }
 
@@ -309,35 +297,36 @@ export class GameScene extends Phaser.Scene {
 
     // Inimigos atacam o player
 
-    const attackIntervalMs = 1000 / this.attackSpeed;
-    const attackIntervalSec = attackIntervalMs / 1000;
+    // const attackIntervalMs = 1000 / this.attackSpeed;
+    // const attackIntervalSec = attackIntervalMs / 1000;
 
-    const ATTACK_ANIM_DURATION = 0.7;
+    // const ATTACK_ANIM_DURATION = 0.7;
 
-    let animationSpeedMultiplier = 1;
+    // let animationSpeedMultiplier = 1;
 
-    if (ATTACK_ANIM_DURATION > attackIntervalSec) {
-      animationSpeedMultiplier = ATTACK_ANIM_DURATION / attackIntervalSec;
-    }
+    // if (ATTACK_ANIM_DURATION > attackIntervalSec) {
+    //   animationSpeedMultiplier = ATTACK_ANIM_DURATION / attackIntervalSec;
+    // }
 
-    animationSpeedMultiplier = Math.max(animationSpeedMultiplier, 1);
+    // animationSpeedMultiplier = Math.max(animationSpeedMultiplier, 1);
 
-    this.playerVisual.setAttackSpeed(animationSpeedMultiplier);
+    // this.playerVisual.setAttackSpeed(animationSpeedMultiplier);
 
-    const currentTarget = this.enemyManager.getCurrentTarget();
+    // const currentTarget = this.enemyManager.getCurrentTarget();
 
-    if (!currentTarget) {
-      this.playerVisual.stopAttack();
-    }
+    // if (!currentTarget) {
+    //   this.playerVisual.stopAttack();
+    //   return;
+    // }
 
-    if (
-      !this.character.isDead() &&
-      currentTarget &&
-      time - this.lastAttackTime >= attackIntervalMs
-    ) {
-      this.lastAttackTime = time;
-      this.playerVisual.startAttack();
-    }
+    // if (
+    //   !this.character.isDead() &&
+    //   currentTarget &&
+    //   time - this.lastAttackTime >= attackIntervalMs
+    // ) {
+    //   this.lastAttackTime = time;
+    //   this.playerVisual.startAttack();
+    // }
 
     // Inimigos atacam o player
     for (const entry of this.enemyManager.getAllEnemies()) {
