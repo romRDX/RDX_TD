@@ -29,8 +29,10 @@ const KNIGHT_FOOT_OFFSET = 35;
 export class GameScene extends Phaser.Scene {
   private enemyGrid!: EnemyGrid;
   private enemyManager!: EnemyManager;
+
   private combatPresenter: CombatPresenter | null = null;
   private combatFlow!: CombatFlowController;
+  private combatSystem!: CombatSystem;
 
   private character!: Character;
   private playerVisual!: PlayerVisualController;
@@ -246,14 +248,16 @@ export class GameScene extends Phaser.Scene {
     const firstTarget = this.enemyManager.getCurrentTarget();
     if (!firstTarget) throw new Error("No enemies available");
 
-    const combat = new CombatSystem(this.character, firstTarget.enemy);
+    // const combat = new CombatSystem(this.character, firstTarget.enemy);
+    this.combatSystem = new CombatSystem(this.character);
+    this.combatSystem.setEnemy(firstTarget.enemy);
 
     if (this.combatPresenter) {
       this.combatPresenter.destroy(this.playerVisual);
     }
 
     this.combatPresenter = new CombatPresenter(
-      combat,
+      this.combatSystem,
       this.playerVisual,
       firstTarget.visual,
       (deadEnemy) => {

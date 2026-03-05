@@ -70,7 +70,8 @@ export class CombatFlowController {
       const newTarget = this.enemyManager.getCurrentTarget();
       if (!newTarget) return null;
 
-      const newCombat = new CombatSystem(playerCharacter, newTarget.enemy);
+      const newCombat = new CombatSystem(playerCharacter);
+      newCombat.setEnemy(newTarget.enemy);
 
       const presenter = new CombatPresenter(
         newCombat,
@@ -89,7 +90,8 @@ export class CombatFlowController {
     // CASO 2: próximo inimigo da fila
     // ================================
 
-    const newCombat = new CombatSystem(playerCharacter, nextTarget.enemy);
+    const newCombat = new CombatSystem(playerCharacter);
+    newCombat.setEnemy(nextTarget.enemy);
 
     const presenter = new CombatPresenter(
       newCombat,

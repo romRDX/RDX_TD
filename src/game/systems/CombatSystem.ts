@@ -3,20 +3,18 @@ import { Enemy } from "../entities/Enemy";
 
 export class CombatSystem {
   character: Character;
-  enemy: Enemy | null;
+  enemy: Enemy | null = null;
 
-  constructor(character: Character, enemy: Enemy) {
+  constructor(character: Character) {
     this.character = character;
-    this.enemy = enemy;
   }
 
-  setEnemy(enemy: Enemy) {
+  setEnemy(enemy: Enemy | null) {
     this.enemy = enemy;
   }
 
   /**
    * Atualiza apenas timers / estado.
-   * NÃO aplica dano.
    */
   update(delta: number) {
     this.character.update(delta);
@@ -25,18 +23,22 @@ export class CombatSystem {
   /**
    * Aplica dano exatamente no hit frame da animação.
    */
-  public applyAttack() {
+  applyAttack() {
     if (!this.enemy) return;
     if (this.enemy.isDead()) return;
 
-    const damage = this.character.stats.damage;
+    console.log("Applying attack to enemy:", this.enemy);
 
     const hpBefore = this.enemy.hp;
 
-    console.log("Applying attack to enemy:", this.enemy);
-    console.log("Enemy HP before:", hpBefore, "damage:", damage);
+    this.enemy.takeDamage(this.character.stats.damage);
 
-    this.enemy.takeDamage(damage);
+    console.log(
+      "Enemy HP before:",
+      hpBefore,
+      "damage:",
+      this.character.stats.damage,
+    );
 
     console.log("Enemy HP after:", this.enemy.hp);
   }
