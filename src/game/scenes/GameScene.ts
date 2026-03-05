@@ -16,11 +16,9 @@ import { EnemyManager } from "../systems/EnemyManager";
 
 import { WaveRenderer } from "../systems/WaveRenderer";
 import { WaveController } from "../systems/WaveController";
-import type { WaveBlueprint } from "../types/WaveBlueprint";
 import { HealthBar } from "../visual/HealthBar";
 
 import { WAVES } from "../stage/WaveConfig";
-// import type { CombatFlowController } from "../systems/CombatFlowController";
 import { CombatFlowController } from "../systems/CombatFlowController";
 
 const GROUND_Y = 360;
@@ -38,27 +36,11 @@ export class GameScene extends Phaser.Scene {
   private playerVisual!: PlayerVisualController;
   private gridHud!: GridHudRenderer;
 
-  // private lastAttackTime = 0;
-  // private attackSpeed = 1;
-
   private isGameOver = false;
-  // private isCombatActive = false;
 
-  // private currentWaveIndex = 0;
   private waveRenderer!: WaveRenderer;
   private waveController!: WaveController;
   private gridToWorld!: (row: number, col: number) => { x: number; y: number };
-
-  // private spawnCurrentWave() {
-  //   // const wave = WAVES[this.currentWaveIndex];
-
-  //   if (!wave) {
-  //     console.log("All waves completed");
-  //     return;
-  //   }
-
-  //   this.waveRenderer.renderWave(wave);
-  // }
 
   constructor() {
     super("GameScene");
@@ -98,20 +80,6 @@ export class GameScene extends Phaser.Scene {
 
     const gridSize = 7;
 
-    // const gridToWorld = (row: number, col: number) => {
-    //   return {
-    //     x: stageConfig.grid.originX + col * stageConfig.grid.cellWidth,
-    //     y: stageConfig.grid.originY + row * stageConfig.grid.cellHeight,
-    //   };
-    // };
-
-    // for (let row = 0; row < gridSize; row++) {
-    //   for (let col = 0; col < gridSize; col++) {
-    //     const { x, y } = gridToWorld(row, col);
-    //     this.gridHud.drawCell(x, y);
-    //   }
-    // }
-
     this.gridToWorld = (row: number, col: number) => {
       const baseX = stageConfig.grid.originX + col * stageConfig.grid.cellWidth;
 
@@ -126,21 +94,6 @@ export class GameScene extends Phaser.Scene {
         y: baseY + verticalOffset,
       };
     };
-
-    // const gridToWorld = (row: number, col: number) => {
-    //   const baseX = stageConfig.grid.originX + col * stageConfig.grid.cellWidth;
-    //   const baseY =
-    //     stageConfig.grid.originY + row * stageConfig.grid.cellHeight;
-
-    //   const isOddColumn = col % 2 === 1;
-
-    //   const verticalOffset = isOddColumn ? -stageConfig.grid.cellHeight / 2 : 0;
-
-    //   return {
-    //     x: baseX,
-    //     y: baseY + verticalOffset,
-    //   };
-    // };
 
     for (let row = 0; row < gridSize; row++) {
       for (let col = 0; col < gridSize; col++) {
@@ -167,10 +120,6 @@ export class GameScene extends Phaser.Scene {
       gridToWorld: this.gridToWorld,
       cellRadius: 26, // 👈 mesmo valor usado no GridHudRenderer
     });
-
-    // this.spawnCurrentWave();
-
-    // this.isCombatActive = true;
 
     this.waveController = new WaveController(
       WAVES,
@@ -294,39 +243,6 @@ export class GameScene extends Phaser.Scene {
     if (this.character?.isDead?.()) {
       return;
     }
-
-    // Inimigos atacam o player
-
-    // const attackIntervalMs = 1000 / this.attackSpeed;
-    // const attackIntervalSec = attackIntervalMs / 1000;
-
-    // const ATTACK_ANIM_DURATION = 0.7;
-
-    // let animationSpeedMultiplier = 1;
-
-    // if (ATTACK_ANIM_DURATION > attackIntervalSec) {
-    //   animationSpeedMultiplier = ATTACK_ANIM_DURATION / attackIntervalSec;
-    // }
-
-    // animationSpeedMultiplier = Math.max(animationSpeedMultiplier, 1);
-
-    // this.playerVisual.setAttackSpeed(animationSpeedMultiplier);
-
-    // const currentTarget = this.enemyManager.getCurrentTarget();
-
-    // if (!currentTarget) {
-    //   this.playerVisual.stopAttack();
-    //   return;
-    // }
-
-    // if (
-    //   !this.character.isDead() &&
-    //   currentTarget &&
-    //   time - this.lastAttackTime >= attackIntervalMs
-    // ) {
-    //   this.lastAttackTime = time;
-    //   this.playerVisual.startAttack();
-    // }
 
     // Inimigos atacam o player
     for (const entry of this.enemyManager.getAllEnemies()) {
