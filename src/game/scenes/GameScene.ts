@@ -20,6 +20,8 @@ import type { WaveBlueprint } from "../types/WaveBlueprint";
 import { HealthBar } from "../visual/HealthBar";
 
 import { WAVES } from "../stage/WaveConfig";
+// import type { CombatFlowController } from "../systems/CombatFlowController";
+import { CombatFlowController } from "../systems/CombatFlowController";
 
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
@@ -27,7 +29,8 @@ const KNIGHT_FOOT_OFFSET = 35;
 export class GameScene extends Phaser.Scene {
   private enemyGrid!: EnemyGrid;
   private enemyManager!: EnemyManager;
-  private combatPresenter!: CombatPresenter;
+  private combatPresenter: CombatPresenter | null = null;
+  private combatFlow!: CombatFlowController;
 
   private character!: Character;
   private playerVisual!: PlayerVisualController;
@@ -175,6 +178,14 @@ export class GameScene extends Phaser.Scene {
 
     this.waveController.start();
 
+    this.combatFlow = new CombatFlowController(
+      this.enemyGrid,
+      this.enemyManager,
+      this.waveController,
+      this.gridToWorld,
+      this,
+    );
+
     console.log(
       "Enemies in manager:",
       this.enemyManager.getAllEnemies().length,
@@ -237,91 +248,44 @@ export class GameScene extends Phaser.Scene {
 
     const combat = new CombatSystem(this.character, firstTarget.enemy);
 
+    if (this.combatPresenter) {
+      this.combatPresenter.destroy(this.playerVisual);
+    }
+
     this.combatPresenter = new CombatPresenter(
       combat,
       this.playerVisual,
       firstTarget.visual,
       (deadEnemy) => {
-        const deadEntry = this.enemyManager.findByEnemy(deadEnemy);
-        if (!deadEntry) return;
+        console.log("GAME SCENE DEATH CALLBACK");
 
-        // 🔹 1) guardar posição antes de qualquer alteração
-        const deadRow = deadEntry.row;
-        const deadCol = deadEntry.col;
-
-        console.log("Dead position:", deadRow, deadCol);
-        console.log("Grid state:", this.enemyGrid);
-
-        // 🔹 2) remover do grid lógico
-        this.enemyGrid.removeEnemyByInstance(deadEnemy);
-
-        // 🔹 3) resolver formação antes de remover do manager
-
-        this.enemyGrid.debugPrint();
-
-        const movements = this.enemyGrid.resolveRowShift(deadRow, deadCol);
-
-        console.log("Movements:", movements);
-
-        // 🔹 4) aplicar movimentos visuais e atualizar posição lógica
-        for (const move of movements) {
-          const entry = this.enemyManager.findByEnemy(move.enemy);
-          if (!entry) continue;
-
-          const { x, y } = this.gridToWorld(move.to.row, move.to.col);
-
-          entry.visual.moveTo(x, y, this);
-
-          entry.row = move.to.row;
-          entry.col = move.to.col;
+        if (this.combatPresenter) {
+          this.combatPresenter.destroy(this.playerVisual);
         }
 
-        // 🔹 5) agora sim remover do manager
-        this.enemyManager.removeEnemy(deadEntry);
+        const newPresenter = this.combatFlow.handleEnemyDeath(
+          deadEnemy,
+          this.character,
+          this.playerVisual,
+        );
 
-        // 🔹 6) destruir visual do morto
-        deadEntry.visual.destroy();
+        if (!newPresenter) {
+          console.log("NO TARGET AVAILABLE");
 
-        // 🔹 7) trocar alvo
-        const nextTarget = this.enemyManager.getCurrentTarget();
-        if (!nextTarget) {
-          console.log("Wave cleared");
-
-          // this.currentWaveIndex++;
-          // this.spawnCurrentWave();
-
-          const hasMoreWaves = this.waveController.handleWaveCleared();
-
-          if (!hasMoreWaves) {
-            console.log("All waves completed");
-            this.playerVisual.stopAttack();
-            return;
-          }
-
-          const newTarget = this.enemyManager.getCurrentTarget();
-          if (!newTarget) {
-            console.log("All waves completed");
-            // this.isCombatActive = false;
-            this.playerVisual.stopAttack();
-            return;
-          }
-
-          // 🔥 recriar sistema de combate
-          const newCombat = new CombatSystem(this.character, newTarget.enemy);
-
-          this.combatPresenter = new CombatPresenter(
-            newCombat,
-            this.playerVisual,
-            newTarget.visual,
-            this.combatPresenter["onEnemyDeath"], // reaproveita callback
-          );
+          this.combatPresenter = null;
+          this.playerVisual.stopAttack();
 
           return;
         }
 
-        this.combatPresenter.setEnemy(nextTarget.enemy, nextTarget.visual);
+        console.log("NEW PRESENTER:", newPresenter);
+
+        this.combatPresenter = newPresenter;
       },
     );
+
+    // 🔥 REGISTRA O PRIMEIRO INIMIGO
+    this.combatPresenter.setEnemy(firstTarget.enemy, firstTarget.visual);
   }
 
   update(time: number, delta: number) {
@@ -329,7 +293,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.combatPresenter.update(delta);
+    console.log("Presenter:", this.combatPresenter);
+
+    if (this.combatPresenter) {
+      this.combatPresenter.update(delta);
+    }
 
     if (this.character?.isDead?.()) {
       return;

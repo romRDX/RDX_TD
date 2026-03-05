@@ -6,56 +6,64 @@ import { Enemy } from "../entities/Enemy";
 export class CombatPresenter {
   private combat: CombatSystem;
   private enemyVisual: EnemyVisualController;
-  private onEnemyDeath?: (enemy: any) => void;
-  private enemyDead = false;
+  private onEnemyDeath?: (enemy: Enemy) => void;
+
+  private hitHandler: () => void;
 
   constructor(
     combat: CombatSystem,
     playerVisual: PlayerVisualController,
     enemyVisual: EnemyVisualController,
-    onEnemyDeath?: (enemy: any) => void,
+    onEnemyDeath?: (enemy: Enemy) => void,
   ) {
     this.combat = combat;
     this.enemyVisual = enemyVisual;
     this.onEnemyDeath = onEnemyDeath;
 
-    // player avisa quando o golpe conecta (frame 6)
-    playerVisual.onHit(() => {
-      if (this.enemyDead) return;
+    this.hitHandler = () => {
+      const enemy = this.combat.enemy;
+
+      if (!enemy) return;
+      if (enemy.isDead()) return;
+
+      console.log("HIT FRAME → applying damage");
 
       this.combat.applyAttack();
+
+      // inimigo pode ter morrido com este hit
+      if (enemy.isDead()) return;
+
       this.enemyVisual.playHit();
-    });
+    };
+
+    playerVisual.onHit(this.hitHandler);
+  }
+
+  destroy(playerVisual: PlayerVisualController) {
+    playerVisual.offHit(this.hitHandler);
   }
 
   setEnemy(enemy: Enemy, enemyVisual: EnemyVisualController) {
-    // remove highlight do antigo
-    this.enemyVisual.setHighlighted(false);
+    console.log("CombatPresenter.setEnemy →", enemy);
 
     this.combat.setEnemy(enemy);
     this.enemyVisual = enemyVisual;
-    this.enemyDead = false;
 
-    // destaca novo
     this.enemyVisual.setHighlighted(true);
+
+    // 🔥 REGISTRA O LISTENER DE MORTE
+    enemy.onDeath(() => {
+      console.log("💀 CombatPresenter received enemy death");
+
+      this.onEnemyDeath?.(enemy);
+    });
   }
 
   update(delta: number) {
     this.combat.update(delta);
 
-    const enemy = this.combat.enemy;
-
-    // this.enemyVisual.updateHealth(enemy.hp, enemy.maxHp);
+    if (!this.combat.enemy) return;
 
     this.enemyVisual.setHighlighted(true);
-
-    // 👇 detectar morte UMA vez
-    if (!this.enemyDead && enemy.hp <= 0) {
-      this.enemyDead = true;
-
-      // this.enemyVisual.playDeath?.();
-      console.log("Enemy died:", enemy);
-      this.onEnemyDeath?.(enemy);
-    }
   }
 }

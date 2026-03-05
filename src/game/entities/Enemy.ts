@@ -13,7 +13,10 @@ export class Enemy {
 
   private attackCooldown = 0;
 
-  private listeners: ((hp: number, maxHp: number) => void)[] = [];
+  private healthListeners: ((hp: number, maxHp: number) => void)[] = [];
+  private deathListeners: (() => void)[] = [];
+
+  private dead = false;
 
   constructor(stats: EnemyStats) {
     this.stats = stats;
@@ -34,21 +37,54 @@ export class Enemy {
   }
 
   takeDamage(amount: number) {
+    if (this.dead) return;
+
+    const hpBefore = this.hp;
+
     this.hp = Math.max(0, this.hp - amount);
+
+    console.log(
+      "Enemy.takeDamage",
+      "before:",
+      hpBefore,
+      "damage:",
+      amount,
+      "after:",
+      this.hp,
+    );
+
     this.emitHealthChange();
+
+    if (!this.dead && this.hp <= 0) {
+      this.dead = true;
+
+      console.log("💀 Enemy death event fired");
+
+      this.emitDeath();
+    }
   }
 
   isDead(): boolean {
-    return this.hp <= 0;
+    return this.dead;
   }
 
   onHealthChange(cb: (hp: number, maxHp: number) => void) {
-    this.listeners.push(cb);
+    this.healthListeners.push(cb);
+  }
+
+  onDeath(cb: () => void) {
+    this.deathListeners.push(cb);
   }
 
   private emitHealthChange() {
-    for (const cb of this.listeners) {
+    for (const cb of this.healthListeners) {
       cb(this.hp, this.stats.maxHp);
+    }
+  }
+
+  private emitDeath() {
+    for (const cb of this.deathListeners) {
+      cb();
     }
   }
 }

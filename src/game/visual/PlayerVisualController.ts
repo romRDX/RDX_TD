@@ -11,7 +11,7 @@ type PlayerVisualConfig = {
 export class PlayerVisualController {
   private sprite: Phaser.GameObjects.Sprite;
   private attacking = false;
-  private onHitCallback?: () => void;
+  private hitListeners: (() => void)[] = [];
   private config: PlayerVisualConfig;
   private isDead = false;
 
@@ -29,7 +29,6 @@ export class PlayerVisualController {
     // pé no chão
     this.sprite.setOrigin(0.5, 1);
 
-    // escala e depth vindos do GameScene
     if (config.scale !== undefined) {
       this.sprite.setScale(config.scale);
     }
@@ -39,7 +38,7 @@ export class PlayerVisualController {
     }
 
     // ==========================
-    // HIT FRAME (frame 6)
+    // HIT FRAME
     // ==========================
     this.sprite.on(
       Phaser.Animations.Events.ANIMATION_UPDATE,
@@ -47,9 +46,17 @@ export class PlayerVisualController {
         anim: Phaser.Animations.Animation,
         frame: Phaser.Animations.AnimationFrame,
       ) => {
-        if (!this.isDead && frame.index === 6) {
-          if (this.onHitCallback) {
-            this.onHitCallback();
+        if (this.isDead) return;
+
+        // garantir que é animação de ataque
+        if (
+          anim.key === this.config.attackAnim ||
+          anim.key === this.config.attackLoopAnim
+        ) {
+          if (frame.index === 6) {
+            for (const cb of this.hitListeners) {
+              cb();
+            }
           }
         }
       },
@@ -59,6 +66,8 @@ export class PlayerVisualController {
     // CONTROLE DE LOOP
     // ==========================
     this.sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      if (this.isDead) return;
+
       if (this.attacking) {
         if (this.config.attackLoopAnim) {
           this.sprite.play(this.config.attackLoopAnim);
@@ -77,10 +86,11 @@ export class PlayerVisualController {
   // ==========================
   // API
   // ==========================
+
   startAttack() {
     if (this.isDead) return;
-
     if (this.attacking) return;
+
     this.attacking = true;
     this.sprite.play(this.config.attackAnim);
   }
@@ -98,9 +108,14 @@ export class PlayerVisualController {
   }
 
   onHit(cb: () => void) {
-    if (this.isDead) return;
+    this.hitListeners.push(cb);
+  }
 
-    this.onHitCallback = cb;
+  offHit(cb: () => void) {
+    const index = this.hitListeners.indexOf(cb);
+    if (index !== -1) {
+      this.hitListeners.splice(index, 1);
+    }
   }
 
   getSprite() {
@@ -111,9 +126,9 @@ export class PlayerVisualController {
     this.isDead = true;
     this.attacking = false;
 
-    this.sprite.anims.stop();
+    this.hitListeners = []; // limpa listeners
 
-    // opcional: deixar parado
+    this.sprite.anims.stop();
     this.sprite.setFrame(0);
   }
 }
