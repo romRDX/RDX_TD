@@ -4,6 +4,9 @@ export class EnemyManager {
   private enemies: EnemyEntry[] = [];
 
   addEnemy(entry: EnemyEntry) {
+    entry.enemy.row = entry.row;
+    entry.enemy.col = entry.col;
+
     this.enemies.push(entry);
   }
 

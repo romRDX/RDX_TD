@@ -5,17 +5,23 @@ import { EnemyManager } from "./EnemyManager";
 import { WaveController } from "./WaveController";
 import { PlayerVisualController } from "../visual/PlayerVisualController";
 import type { Character } from "../entities/Character";
+import { EnemyMovementResolver } from "./EnemyMovementResolver";
+import type { EnemyMovement } from "../types/EnemyMovement";
 
 type GridToWorldFn = (row: number, col: number) => { x: number; y: number };
 
 export class CombatFlowController {
+  private movementResolver: EnemyMovementResolver;
+
   constructor(
     private enemyGrid: EnemyGrid,
     private enemyManager: EnemyManager,
     private waveController: WaveController,
     private gridToWorld: GridToWorldFn,
     private scene: Phaser.Scene,
-  ) {}
+  ) {
+    this.movementResolver = new EnemyMovementResolver(enemyGrid);
+  }
 
   handleEnemyDeath(
     deadEnemy: Enemy,
@@ -31,28 +37,19 @@ export class CombatFlowController {
     // 1️⃣ remover do grid
     this.enemyGrid.removeEnemyByInstance(deadEnemy);
 
-    // 2️⃣ resolver movimentação
-    const movements = this.enemyGrid.resolveRowShift(deadRow, deadCol);
+    // 2️⃣ resolver movimentação lógica
+    const movements = this.movementResolver.resolveAfterDeath(deadRow, deadCol);
 
-    for (const move of movements) {
-      const entry = this.enemyManager.findByEnemy(move.enemy);
-      if (!entry) continue;
+    // 3️⃣ animar movimentações
+    this.animateMovements(movements);
 
-      const { x, y } = this.gridToWorld(move.to.row, move.to.col);
-
-      entry.visual.moveTo(x, y, this.scene);
-
-      entry.row = move.to.row;
-      entry.col = move.to.col;
-    }
-
-    // 3️⃣ remover do manager
+    // 4️⃣ remover do manager
     this.enemyManager.removeEnemy(deadEntry);
 
-    // 4️⃣ destruir visual
+    // 5️⃣ destruir visual
     deadEntry.visual.destroy();
 
-    // 5️⃣ verificar se ainda há inimigos
+    // 6️⃣ verificar se ainda há inimigos
     const nextTarget = this.enemyManager.getCurrentTarget();
 
     // ================================
@@ -73,5 +70,22 @@ export class CombatFlowController {
     // CASO 2: ainda há inimigos
     // ================================
     return nextTarget;
+  }
+
+  private animateMovements(movements: EnemyMovement[]) {
+    movements.forEach((move) => {
+      const entry = this.enemyManager.findByEnemy(move.enemy);
+      if (!entry) return;
+
+      const { x, y } = this.gridToWorld(move.to.row, move.to.col);
+
+      entry.visual.moveTo(x, y, this.scene);
+
+      entry.row = move.to.row;
+      entry.col = move.to.col;
+
+      move.enemy.row = move.to.row;
+      move.enemy.col = move.to.col;
+    });
   }
 }

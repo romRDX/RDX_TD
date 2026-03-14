@@ -1,46 +1,16 @@
 import Phaser from "phaser";
 
 import { Enemy } from "../entities/Enemy";
-import type { EnemyStats } from "../entities/Enemy";
 import { EnemyVisualController } from "../visual/EnemyVisualController";
 import type { EnemyEntry } from "../types/EnemyEntry";
+
+import { ENEMY_PROTOTYPES } from "../data/enemies/enemyPrototypes";
 
 /**
  * Tipos básicos de inimigos
  * ID pode ser number ou string
  */
 export type EnemyTypeId = number;
-
-/**
- * Blueprint / Prototype de inimigo
- * Só dados, zero estado vivo
- */
-type EnemyPrototype = {
-  id: EnemyTypeId;
-  stats: EnemyStats;
-  textureKey: string;
-  scale: number;
-  flipX?: boolean;
-};
-
-/**
- * Registry de inimigos básicos
- * (isso é sua "base de dados")
- */
-const ENEMY_PROTOTYPES: Record<EnemyTypeId, EnemyPrototype> = {
-  1: {
-    id: 1,
-    stats: {
-      maxHp: 250,
-      damage: 5,
-      attackSpeed: 0.8,
-      archetype: "melee",
-    },
-    textureKey: "kobold-idle",
-    scale: 1,
-    flipX: true,
-  },
-};
 
 export class EnemiesFactory {
   static create({
@@ -59,7 +29,7 @@ export class EnemiesFactory {
     // 1️⃣ Enemy lógico — sempre NOVO
     const enemy = new Enemy(proto.stats);
 
-    // 2️⃣ Visual — sem posição
+    // 2️⃣ Visual — criado sem posição ainda
     const visual = new EnemyVisualController(
       scene,
       0,
@@ -70,7 +40,7 @@ export class EnemiesFactory {
         flipX: proto.flipX ?? false,
         depth: 2,
       },
-      enemy /* 👈 linka o visual com o inimigo para updates de vida */,
+      enemy, // linka visual ↔ enemy para updates de vida
     );
 
     visual.playIdle(proto.textureKey);
@@ -79,8 +49,8 @@ export class EnemiesFactory {
       enemy,
       visual,
       typeId: proto.id,
-      row: -1, // 👈 posição ainda não definida
-      col: -1, // 👈 posição ainda não definida
+      row: -1, // posição ainda não definida
+      col: -1, // posição ainda não definida
     };
   }
 }

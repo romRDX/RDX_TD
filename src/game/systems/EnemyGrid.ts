@@ -66,6 +66,11 @@ export class EnemyGrid {
     return movements;
   }
 
+  tryMoveForward(enemy: Enemy): boolean {
+    // Implement forward movement logic here
+    return true;
+  }
+
   private findBestCandidate(
     targetRow: number,
     targetCol: number,
@@ -139,6 +144,87 @@ export class EnemyGrid {
     }
 
     return result;
+  }
+
+  getEnemiesAt(row: number, col: number) {
+    return this.cells[row]?.[col] ?? null;
+  }
+
+  isCellEmpty(row: number, col: number) {
+    return !this.cells[row]?.[col];
+  }
+
+  getColumn(col: number) {
+    const result = [];
+
+    for (let row = 0; row < this.rows; row++) {
+      const enemy = this.cells[row]?.[col];
+      if (enemy) {
+        result.push({
+          enemy,
+          row,
+          col,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  getEnemiesInColumn(col: number) {
+    const enemies = [];
+
+    for (let row = 0; row < this.rows; row++) {
+      const enemy = this.cells[row][col];
+
+      if (enemy) {
+        enemies.push({
+          enemy,
+          row,
+          col,
+        });
+      }
+    }
+
+    return enemies;
+  }
+
+  getFrontColumn(): number | null {
+    for (let col = 0; col < this.cols; col++) {
+      if (this.columnHasEnemies(col)) {
+        return col;
+      }
+    }
+
+    return null;
+  }
+
+  columnHasEnemies(col: number) {
+    for (let row = 0; row < this.rows; row++) {
+      if (this.cells[row]?.[col]) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  moveEnemy(fromRow: number, fromCol: number, toRow: number, toCol: number) {
+    const entry = this.cells[fromRow][fromCol];
+
+    if (!entry) {
+      throw new Error("No enemy at source cell");
+    }
+
+    if (this.cells[toRow][toCol]) {
+      throw new Error("Target cell is not empty");
+    }
+
+    this.cells[fromRow][fromCol] = null;
+    this.cells[toRow][toCol] = entry;
+
+    entry.row = toRow;
+    entry.col = toCol;
   }
 
   debugPrint() {

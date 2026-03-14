@@ -21,6 +21,8 @@ import { HealthBar } from "../visual/HealthBar";
 import { WAVES } from "../stage/WaveConfig";
 import { CombatFlowController } from "../systems/CombatFlowController";
 
+import { GameStateController } from "../systems/GameStateController";
+
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
 
@@ -37,6 +39,7 @@ export class GameScene extends Phaser.Scene {
   private gridHud!: GridHudRenderer;
 
   private isGameOver = false;
+  private gameState!: GameStateController;
 
   private waveRenderer!: WaveRenderer;
   private waveController!: WaveController;
@@ -61,6 +64,8 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const stageConfig = defaultStageConfig;
+
+    this.gameState = new GameStateController();
 
     // BACKGROUND
     const castle = this.add.image(240, GROUND_Y, "castle");
@@ -182,8 +187,8 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.character.onHealthChange((hp, maxHp) => {
-      if (hp <= 0 && !this.isGameOver) {
-        this.isGameOver = true;
+      if (hp <= 0 && !this.gameState.isGameOver()) {
+        this.gameState.setGameOver();
 
         console.log("Player died");
 
@@ -230,7 +235,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
-    if (this.isGameOver) {
+    if (!this.gameState.isRunning()) {
       return;
     }
 

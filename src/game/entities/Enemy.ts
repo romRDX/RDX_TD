@@ -5,11 +5,15 @@ export type EnemyStats = {
   damage: number;
   attackSpeed: number; // ataques por segundo
   archetype: EnemyArchetype;
+  range: number;
 };
 
 export class Enemy {
   public readonly stats: EnemyStats;
   public hp: number;
+
+  public row: number = 0;
+  public col: number = 0;
 
   private attackCooldown = 0;
 
