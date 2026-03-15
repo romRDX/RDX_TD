@@ -7,6 +7,8 @@ import { PlayerVisualController } from "../visual/PlayerVisualController";
 import type { Character } from "../entities/Character";
 import { EnemyMovementResolver } from "./EnemyMovementResolver";
 import type { EnemyMovement } from "../types/EnemyMovement";
+import { actionQueue } from "../../core/actions/instanceActionQueue";
+import { MoveEnemyAction } from "../../core/actions/MoveEnemyAction";
 
 type GridToWorldFn = (row: number, col: number) => { x: number; y: number };
 
@@ -23,11 +25,11 @@ export class CombatFlowController {
     this.movementResolver = new EnemyMovementResolver(enemyGrid);
   }
 
-  handleEnemyDeath(
+  async handleEnemyDeath(
     deadEnemy: Enemy,
     playerCharacter: Character,
     playerVisual: PlayerVisualController,
-  ): EnemyEntry | null {
+  ): Promise<EnemyEntry | null> {
     const deadEntry = this.enemyManager.findByEnemy(deadEnemy);
     if (!deadEntry) return null;
 
@@ -41,7 +43,7 @@ export class CombatFlowController {
     const movements = this.movementResolver.resolveAfterDeath(deadRow, deadCol);
 
     // 3️⃣ animar movimentações
-    this.animateMovements(movements);
+    await this.animateMovements(movements);
 
     // 4️⃣ remover do manager
     this.enemyManager.removeEnemy(deadEntry);
@@ -72,20 +74,22 @@ export class CombatFlowController {
     return nextTarget;
   }
 
-  private animateMovements(movements: EnemyMovement[]) {
-    movements.forEach((move) => {
+  private async animateMovements(movements: EnemyMovement[]) {
+    for (const move of movements) {
       const entry = this.enemyManager.findByEnemy(move.enemy);
-      if (!entry) return;
+      if (!entry) continue;
 
-      const { x, y } = this.gridToWorld(move.to.row, move.to.col);
+      actionQueue.enqueue(
+        new MoveEnemyAction(
+          entry,
+          move.to.row,
+          move.to.col,
+          this.gridToWorld,
+          this.scene,
+        ),
+      );
+    }
 
-      entry.visual.moveTo(x, y, this.scene);
-
-      entry.row = move.to.row;
-      entry.col = move.to.col;
-
-      move.enemy.row = move.to.row;
-      move.enemy.col = move.to.col;
-    });
+    await actionQueue.process();
   }
 }

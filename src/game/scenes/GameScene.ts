@@ -209,7 +209,7 @@ export class GameScene extends Phaser.Scene {
       this.combatSystem,
       this.playerVisual,
       (deadEnemy) => {
-        const newTarget = this.combatFlow.handleEnemyDeath(
+        const newTarget = await this.combatFlow.handleEnemyDeath(
           deadEnemy,
           this.character,
           this.playerVisual,
