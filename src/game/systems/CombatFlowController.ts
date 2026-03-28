@@ -9,11 +9,15 @@ import { EnemyMovementResolver } from "./EnemyMovementResolver";
 import type { EnemyMovement } from "../types/EnemyMovement";
 import { actionQueue } from "../../core/actions/instanceActionQueue";
 import { MoveEnemyAction } from "../../core/actions/MoveEnemyAction";
+import { eventBus } from "../../core/instanceEventBus";
 
 type GridToWorldFn = (row: number, col: number) => { x: number; y: number };
 
 export class CombatFlowController {
   private movementResolver: EnemyMovementResolver;
+  private playerCharacter!: Character;
+  private playerVisual!: PlayerVisualController;
+  private onNewTarget?: (enemy: EnemyEntry) => void;
 
   constructor(
     private enemyGrid: EnemyGrid,
@@ -23,6 +27,27 @@ export class CombatFlowController {
     private scene: Phaser.Scene,
   ) {
     this.movementResolver = new EnemyMovementResolver(enemyGrid);
+
+    eventBus.on("enemy:death", async ({ enemy }) => {
+      const nextTarget = await this.handleEnemyDeath(
+        enemy,
+        this.playerCharacter,
+        this.playerVisual,
+      );
+
+      if (nextTarget) {
+        this.onNewTarget?.(nextTarget);
+      }
+    });
+  }
+
+  setPlayer(character: Character, visual: PlayerVisualController) {
+    this.playerCharacter = character;
+    this.playerVisual = visual;
+  }
+
+  setOnNewTarget(callback: (enemy: EnemyEntry) => void) {
+    this.onNewTarget = callback;
   }
 
   async handleEnemyDeath(
@@ -42,7 +67,7 @@ export class CombatFlowController {
     // 2️⃣ resolver movimentação lógica
     const movements = this.movementResolver.resolveAfterDeath(deadRow, deadCol);
 
-    // 3️⃣ animar movimentações
+    // 3️⃣ animar movimentações (AGORA via ActionQueue)
     await this.animateMovements(movements);
 
     // 4️⃣ remover do manager
@@ -51,12 +76,9 @@ export class CombatFlowController {
     // 5️⃣ destruir visual
     deadEntry.visual.destroy();
 
-    // 6️⃣ verificar se ainda há inimigos
+    // 6️⃣ próximo alvo
     const nextTarget = this.enemyManager.getCurrentTarget();
 
-    // ================================
-    // CASO 1: não há inimigos
-    // ================================
     if (!nextTarget) {
       const hasMoreWaves = this.waveController.handleWaveCleared();
 
@@ -68,28 +90,38 @@ export class CombatFlowController {
       return this.enemyManager.getCurrentTarget();
     }
 
-    // ================================
-    // CASO 2: ainda há inimigos
-    // ================================
     return nextTarget;
   }
 
   private async animateMovements(movements: EnemyMovement[]) {
+    const actions: MoveEnemyAction[] = [];
+
     for (const move of movements) {
       const entry = this.enemyManager.findByEnemy(move.enemy);
       if (!entry) continue;
 
-      actionQueue.enqueue(
-        new MoveEnemyAction(
-          entry,
-          move.to.row,
-          move.to.col,
-          this.gridToWorld,
-          this.scene,
-        ),
+      actions.push(
+        new MoveEnemyAction(entry, move.to, this.gridToWorld, this.scene),
       );
     }
 
+    const BASE_DELAY = 80;
+
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      const delay = BASE_DELAY * i;
+
+      actionQueue.enqueue(async () => {
+        await new Promise((resolve) => {
+          this.scene.time.delayedCall(delay, async () => {
+            await action.execute();
+            resolve(null);
+          });
+        });
+      });
+    }
+
+    // 🔥 IMPORTANTE: processar fila
     await actionQueue.process();
   }
 }

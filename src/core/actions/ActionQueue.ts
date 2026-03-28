@@ -1,26 +1,30 @@
-import { Action } from "./Action";
-
 export class ActionQueue {
-  private queue: Action[] = [];
-  private processing = false;
+  private queue: Array<() => Promise<void>> = [];
+  private isProcessing = false;
 
-  enqueue(action: Action) {
+  enqueue(action: () => Promise<void>) {
     this.queue.push(action);
   }
 
-  async process() {
-    if (this.processing) return;
+  process() {
+    if (this.isProcessing) return;
 
-    this.processing = true;
+    this.isProcessing = true;
 
-    while (this.queue.length > 0) {
-      const action = this.queue.shift();
-      if (!action) continue;
+    const run = async () => {
+      while (this.queue.length > 0) {
+        const action = this.queue.shift();
+        if (!action) continue;
 
-      await action.execute();
-    }
+        console.log("⚙️ Executing queued action");
 
-    this.processing = false;
+        await action();
+      }
+
+      this.isProcessing = false;
+    };
+
+    run();
   }
 
   clear() {

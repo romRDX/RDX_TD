@@ -11,9 +11,10 @@ type PlayerVisualConfig = {
 export class PlayerVisualController {
   private sprite: Phaser.GameObjects.Sprite;
   private attacking = false;
+  private hitListeners: (() => void)[] = [];
   private config: PlayerVisualConfig;
   private isDead = false;
-  private attackSpeed = 1;
+  private hasHitThisAttack = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -38,21 +39,60 @@ export class PlayerVisualController {
     }
 
     // ==========================
-    // CONTROLE DE LOOP
+    // HIT FRAME
     // ==========================
     this.sprite.on(
-      Phaser.Animations.Events.ANIMATION_COMPLETE,
-      (anim: Phaser.Animations.Animation) => {
+      Phaser.Animations.Events.ANIMATION_UPDATE,
+      (
+        anim: Phaser.Animations.Animation,
+        frame: Phaser.Animations.AnimationFrame,
+      ) => {
         if (this.isDead) return;
 
+        // garantir que é animação de ataque
         if (
           anim.key === this.config.attackAnim ||
           anim.key === this.config.attackLoopAnim
         ) {
-          this.sprite.play(this.config.idleAnim);
+          if (frame.index === 6 && !this.hasHitThisAttack) {
+            this.hasHitThisAttack = true;
+
+            for (const cb of this.hitListeners) {
+              cb();
+            }
+          }
         }
       },
     );
+
+    this.sprite.on(
+      Phaser.Animations.Events.ANIMATION_START,
+      (anim: Phaser.Animations.Animation) => {
+        if (
+          anim.key === this.config.attackAnim ||
+          anim.key === this.config.attackLoopAnim
+        ) {
+          this.hasHitThisAttack = false;
+        }
+      },
+    );
+
+    // ==========================
+    // CONTROLE DE LOOP
+    // ==========================
+    this.sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      if (this.isDead) return;
+
+      if (this.attacking) {
+        if (this.config.attackLoopAnim) {
+          this.sprite.play(this.config.attackLoopAnim);
+        } else {
+          this.sprite.play(this.config.attackAnim);
+        }
+      } else {
+        this.sprite.play(this.config.idleAnim);
+      }
+    });
 
     // animação inicial
     this.sprite.play(this.config.idleAnim);
@@ -67,25 +107,13 @@ export class PlayerVisualController {
     if (this.attacking) return;
 
     this.attacking = true;
-    this.sprite.play(this.config.attackAnim);
-  }
-
-  /**
-   * 🔥 Novo: ataque controlado externamente (1x)
-   */
-  playAttackOnce() {
-    if (this.isDead) return;
+    this.hasHitThisAttack = false; // 👈 IMPORTANTE
 
     this.sprite.play(this.config.attackAnim);
   }
 
   setAttackSpeed(multiplier: number) {
-    this.attackSpeed = multiplier;
     this.sprite.anims.timeScale = multiplier;
-  }
-
-  getAttackSpeed() {
-    return this.attackSpeed;
   }
 
   stopAttack() {
@@ -96,6 +124,17 @@ export class PlayerVisualController {
     }
   }
 
+  onHit(cb: () => void) {
+    this.hitListeners.push(cb);
+  }
+
+  offHit(cb: () => void) {
+    const index = this.hitListeners.indexOf(cb);
+    if (index !== -1) {
+      this.hitListeners.splice(index, 1);
+    }
+  }
+
   getSprite() {
     return this.sprite;
   }
@@ -103,6 +142,8 @@ export class PlayerVisualController {
   die() {
     this.isDead = true;
     this.attacking = false;
+
+    this.hitListeners = []; // limpa listeners
 
     this.sprite.anims.stop();
     this.sprite.setFrame(0);

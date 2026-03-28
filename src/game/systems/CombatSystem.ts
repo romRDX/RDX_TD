@@ -1,5 +1,9 @@
+import { DamageAction } from "../../core/actions/DamageAction";
+import { actionQueue } from "../../core/actions/instanceActionQueue";
 import { Character } from "../entities/Character";
 import { Enemy } from "../entities/Enemy";
+import { AttackAction } from "../../core/actions/AttackAction";
+import { PlayerVisualController } from "../visual/PlayerVisualController";
 
 export class CombatSystem {
   character: Character;
@@ -7,7 +11,11 @@ export class CombatSystem {
 
   private attackTimer = 0;
 
-  constructor(character: Character) {
+  constructor(
+    character: Character,
+    private playerVisual: PlayerVisualController,
+    private scene: Phaser.Scene,
+  ) {
     this.character = character;
   }
 
@@ -24,6 +32,8 @@ export class CombatSystem {
     if (!this.enemy) return;
     if (this.enemy.isDead()) return;
 
+    this.playerVisual.setAttackSpeed(this.character.stats.attackSpeed);
+
     const attackInterval = 1000 / this.character.stats.attackSpeed;
 
     this.attackTimer += delta;
@@ -31,7 +41,9 @@ export class CombatSystem {
     if (this.attackTimer >= attackInterval) {
       this.attackTimer = 0;
 
-      this.character.performAttack();
+      console.log("⚔️ Attack triggered");
+
+      this.applyAttack();
     }
   }
 
@@ -41,22 +53,38 @@ export class CombatSystem {
   public applyAttack() {
     const enemy = this.enemy;
 
-    if (!enemy) return;
+    if (!enemy) {
+      console.log("❌ applyAttack: no enemy");
+      return;
+    }
 
-    if (enemy.isDead()) return;
+    if (enemy.isDead()) {
+      console.log("❌ applyAttack: enemy already dead");
+      return;
+    }
 
-    console.log("Applying attack to enemy:", enemy);
+    const damage = this.character.stats.damage;
 
-    const hpBefore = enemy.hp;
+    console.log("🟡 APPLY ATTACK → enqueue AttackAction", {
+      enemyHp: enemy.hp,
+      damage,
+    });
 
-    enemy.takeDamage(this.character.stats.damage);
+    actionQueue.enqueue(async () => {
+      console.log("⚙️ EXECUTING AttackAction");
 
-    console.log(
-      "Enemy HP before:",
-      hpBefore,
-      "damage:",
-      this.character.stats.damage,
-    );
-    console.log("Enemy HP after:", enemy.hp);
+      const action = new AttackAction(
+        enemy,
+        damage,
+        this.playerVisual,
+        this.scene,
+      );
+
+      await action.execute();
+
+      console.log("✅ AttackAction finished", {
+        enemyHpAfter: enemy.hp,
+      });
+    });
   }
 }

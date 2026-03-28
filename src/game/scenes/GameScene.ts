@@ -23,6 +23,8 @@ import { CombatFlowController } from "../systems/CombatFlowController";
 
 import { GameStateController } from "../systems/GameStateController";
 
+import { actionQueue } from "../../core/actions/instanceActionQueue";
+
 const GROUND_Y = 360;
 const KNIGHT_FOOT_OFFSET = 35;
 
@@ -142,6 +144,12 @@ export class GameScene extends Phaser.Scene {
       this,
     );
 
+    this.combatFlow.setOnNewTarget((entry) => {
+      if (!this.combatPresenter) return;
+
+      this.combatPresenter.setEnemy(entry.enemy, entry.visual);
+    });
+
     console.log(
       "Enemies in manager:",
       this.enemyManager.getAllEnemies().length,
@@ -177,7 +185,7 @@ export class GameScene extends Phaser.Scene {
 
     // COMBATE
     this.character = new Character({
-      maxHp: 10000,
+      maxHp: 1000,
       damage: 50,
       attackSpeed: 1, // ataques por segundo
     });
@@ -199,36 +207,48 @@ export class GameScene extends Phaser.Scene {
 
     playerHealthBar.update(1);
 
+    //  SET PLAYER
+    this.combatFlow.setPlayer(this.character, this.playerVisual);
+
     const firstTarget = this.enemyManager.getCurrentTarget();
     if (!firstTarget) throw new Error("No enemies available");
 
     // const combat = new CombatSystem(this.character, firstTarget.enemy);
-    this.combatSystem = new CombatSystem(this.character);
+    this.combatSystem = new CombatSystem(
+      this.character,
+      this.playerVisual,
+      this,
+    );
+
+    // this.combatPresenter = new CombatPresenter(
+    //   this.combatSystem,
+    //   this.playerVisual,
+    //   async (deadEnemy) => {
+    //     const newTarget = await this.combatFlow.handleEnemyDeath(
+    //       deadEnemy,
+    //       this.character,
+    //       this.playerVisual,
+    //     );
+
+    //     if (!newTarget) {
+    //       this.playerVisual.stopAttack();
+
+    //       if (this.combatPresenter) {
+    //         this.combatPresenter.clearEnemy();
+    //       }
+
+    //       return;
+    //     }
+
+    //     if (this.combatPresenter) {
+    //       this.combatPresenter.setEnemy(newTarget.enemy, newTarget.visual);
+    //     }
+    //   },
+    // );
 
     this.combatPresenter = new CombatPresenter(
       this.combatSystem,
       this.playerVisual,
-      (deadEnemy) => {
-        const newTarget = await this.combatFlow.handleEnemyDeath(
-          deadEnemy,
-          this.character,
-          this.playerVisual,
-        );
-
-        if (!newTarget) {
-          this.playerVisual.stopAttack();
-
-          if (this.combatPresenter) {
-            this.combatPresenter.clearEnemy();
-          }
-
-          return;
-        }
-
-        if (this.combatPresenter) {
-          this.combatPresenter.setEnemy(newTarget.enemy, newTarget.visual);
-        }
-      },
     );
 
     this.combatPresenter.setEnemy(firstTarget.enemy, firstTarget.visual);
@@ -263,5 +283,7 @@ export class GameScene extends Phaser.Scene {
         // ranged sempre pode atacar (por enquanto)
       }
     }
+
+    actionQueue.process();
   }
 }

@@ -1,28 +1,32 @@
 import { Action } from "./Action";
-import type { EnemyEntry } from "../../../src/game/types/EnemyEntry";
+import { Enemy } from "../../game/entities/Enemy";
+import type { EnemyEntry } from "../../game/types/EnemyEntry";
 
-type GridToWorldFn = (row: number, col: number) => { x: number; y: number };
+type GridPosition = {
+  row: number;
+  col: number;
+};
 
 export class MoveEnemyAction extends Action {
   constructor(
     private entry: EnemyEntry,
-    private toRow: number,
-    private toCol: number,
-    private gridToWorld: GridToWorldFn,
+    private to: GridPosition,
+    private gridToWorld: (row: number, col: number) => { x: number; y: number },
     private scene: Phaser.Scene,
   ) {
     super();
   }
 
-  async execute() {
-    const { x, y } = this.gridToWorld(this.toRow, this.toCol);
+  async execute(): Promise<void> {
+    const { x, y } = this.gridToWorld(this.to.row, this.to.col);
 
-    this.entry.visual.moveTo(x, y, this.scene);
+    await this.entry.visual.moveTo(x, y, this.scene);
 
-    this.entry.row = this.toRow;
-    this.entry.col = this.toCol;
+    // 🔥 Atualiza estado lógico
+    this.entry.row = this.to.row;
+    this.entry.col = this.to.col;
 
-    this.entry.enemy.row = this.toRow;
-    this.entry.enemy.col = this.toCol;
+    this.entry.enemy.row = this.to.row;
+    this.entry.enemy.col = this.to.col;
   }
 }
