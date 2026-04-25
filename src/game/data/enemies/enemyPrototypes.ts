@@ -16,7 +16,6 @@ export const ENEMY_PROTOTYPES: Record<EnemyTypeId, EnemyPrototype> = {
       maxHp: 250,
       damage: 5,
       attackSpeed: 0.8,
-      archetype: "melee",
       range: 1,
     },
     textureKey: "kobold-idle",

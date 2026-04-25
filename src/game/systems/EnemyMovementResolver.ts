@@ -7,75 +7,166 @@ type Movement = {
   to: { row: number; col: number };
 };
 
+const MAX_DISTANCE = 3;
+
 export class EnemyMovementResolver {
   constructor(private grid: EnemyGrid) {}
 
-  resolveAfterDeath(row: number, col: number): Movement[] {
-    const movements: Movement[] = [];
+  private canMoveForward(row: number, col: number): boolean {
+    let blockedCount = 0;
 
-    const frontColumn = this.grid.getFrontColumn();
-
-    if (frontColumn === null) {
-      return movements;
-    }
-
-    // se já estamos na coluna 0 ninguém avança
-    if (frontColumn === 0) {
-      return movements;
-    }
-
-    const enemies = this.grid.getEnemiesInColumn(frontColumn);
-
-    for (const e of enemies) {
-      const targetRow = e.row;
-      const targetCol = frontColumn - 1;
-
-      if (this.grid.isCellEmpty(targetRow, targetCol)) {
-        this.grid.moveEnemy(e.row, e.col, targetRow, targetCol);
-
-        movements.push({
-          enemy: e.enemy,
-          from: { row: e.row, col: e.col },
-          to: { row: targetRow, col: targetCol },
-        });
-      }
-    }
-
-    return movements;
-  }
-
-  private findFrontEnemyColumn(): number | null {
-    for (let col = 0; col < this.grid.cols; col++) {
-      const enemies = this.grid.getEnemiesInColumn(col);
+    for (let c = col - 1; c >= 0; c--) {
+      const enemies = this.grid.getEnemiesInColumn(c);
 
       if (enemies.length > 0) {
-        return col;
+        blockedCount++;
+
+        if (blockedCount >= 2) {
+          return false; // 🔥 bloqueado
+        }
       }
     }
 
-    return null;
+    return true; // 🔥 pode mover
   }
 
-  private moveColumnToFront(col: number): Movement[] {
+  resolveAfterDeath(row: number, col: number): Movement[] {
+    const allMovements: Movement[] = [];
+
+    let moved = true;
+    let currentRow = row;
+    let currentCol = col;
+
+    while (moved) {
+      moved = false;
+
+      const movements = this.resolveFromGap(currentRow, currentCol);
+
+      if (movements.length > 0) {
+        moved = true;
+        allMovements.push(...movements);
+
+        // 🔥 pega o novo gap (posição antiga do inimigo que moveu)
+        const lastMove = movements[0];
+        currentRow = lastMove.from.row;
+        currentCol = lastMove.from.col;
+      }
+    }
+
+    return allMovements;
+  }
+
+  // resolveAfterDeath(row: number, col: number): Movement[] {
+  //   const allMovements: Movement[] = [];
+
+  //   // 🔥 se não há inimigos, não há o que mover
+  //   if (this.grid.getAllEnemies().length === 0) {
+  //     return allMovements;
+  //   }
+
+  //   let moved = true;
+
+  //   while (moved) {
+  //     moved = false;
+
+  //     // 🔥 resolve movimento a partir do gap (posição onde morreu)
+  //     const movements = this.resolveFromGap(row, col);
+
+  //     if (movements.length > 0) {
+  //       moved = true;
+  //       allMovements.push(...movements);
+  //     }
+  //   }
+
+  //   return allMovements;
+  // }
+
+  private resolveFromGap(startRow: number, startCol: number): Movement[] {
     const movements: Movement[] = [];
 
-    const enemies = this.grid.getEnemiesInColumn(col);
+    const MAX_DISTANCE = 3;
 
-    for (const e of enemies) {
-      const targetRow = e.row;
-      const targetCol = 0;
+    // se o gap não está vazio, não faz nada
+    if (!this.grid.isCellEmpty(startRow, startCol)) {
+      return movements;
+    }
 
-      if (this.grid.isCellEmpty(targetRow, targetCol)) {
-        this.grid.moveEnemy(e.row, e.col, targetRow, targetCol);
+    const visited = new Set<string>();
+    const queue: { row: number; col: number; dist: number }[] = [];
 
-        movements.push({
-          enemy: e.enemy,
-          from: { row: e.row, col: e.col },
-          to: { row: targetRow, col: targetCol },
+    queue.push({ row: startRow, col: startCol, dist: 0 });
+    visited.add(`${startRow},${startCol}`);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const { row, col, dist } = current;
+
+      // 🔥 limite de distância (permite até MAX_DISTANCE)
+      if (dist > MAX_DISTANCE) continue;
+
+      const nextPositions = [
+        { row: row, col: col + 1 }, // direto atrás (prioridade máxima)
+        { row: row - 1, col: col + 1 }, // diagonal cima
+        { row: row + 1, col: col + 1 }, // diagonal baixo
+      ];
+
+      for (const pos of nextPositions) {
+        if (!this.grid.isValidPosition(pos.row, pos.col)) continue;
+
+        const key = `${pos.row},${pos.col}`;
+        if (visited.has(key)) continue;
+
+        visited.add(key);
+
+        const entry = this.grid.getEntryAt(pos.row, pos.col);
+        if (!entry) continue;
+
+        const enemy = entry.enemy;
+
+        const isInRange = this.isInRange(pos.col, enemy.stats.range);
+
+        // 🔥 move se precisar (fora de range)
+        if (!isInRange) {
+          this.grid.moveEnemy(pos.row, pos.col, startRow, startCol);
+
+          movements.push({
+            enemy,
+            from: { row: pos.row, col: pos.col },
+            to: { row: startRow, col: startCol },
+          });
+
+          return movements;
+        }
+
+        // 🔥 continua busca (BFS)
+        queue.push({
+          row: pos.row,
+          col: pos.col,
+          dist: dist + 1,
         });
       }
     }
 
     return movements;
+  }
+
+  private isInRange(col: number, range: number): boolean {
+    return col <= range - 1;
+  }
+
+  private isProtected(col: number): boolean {
+    for (let c = 0; c < col; c++) {
+      const enemies = this.grid.getEnemiesInColumn(c);
+
+      for (const entry of enemies) {
+        const enemy = entry.enemy;
+
+        if (this.isInRange(c, enemy.stats.range)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 }

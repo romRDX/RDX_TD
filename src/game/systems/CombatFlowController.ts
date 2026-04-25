@@ -61,11 +61,17 @@ export class CombatFlowController {
     const deadRow = deadEntry.row;
     const deadCol = deadEntry.col;
 
-    // 1️⃣ remover do grid
-    this.enemyGrid.removeEnemyByInstance(deadEnemy);
+    // 1️⃣ remover do manager (PRIMEIRO)
+    this.enemyManager.removeEnemy(deadEntry);
 
-    // 2️⃣ resolver movimentação lógica
+    // 2️⃣ remover do grid
+    // this.enemyGrid.removeEnemyByInstance(deadEnemy);
+    this.enemyGrid.removeEnemyAt(deadRow, deadCol);
+
+    // 3️⃣ resolver movimentação lógica
     const movements = this.movementResolver.resolveAfterDeath(deadRow, deadCol);
+
+    console.log("MOVEMENTS:", movements);
 
     // 3️⃣ animar movimentações (AGORA via ActionQueue)
     await this.animateMovements(movements);
@@ -78,6 +84,9 @@ export class CombatFlowController {
 
     // 6️⃣ próximo alvo
     const nextTarget = this.enemyManager.getCurrentTarget();
+
+    console.log("DEAD POSITION:", deadRow, deadCol);
+    console.log("GRID AFTER REMOVE:", this.enemyGrid.getAllEnemies());
 
     if (!nextTarget) {
       const hasMoreWaves = this.waveController.handleWaveCleared();

@@ -9,6 +9,7 @@ export type EnemyStats = {
 };
 
 export class Enemy {
+  public id: string;
   public readonly stats: EnemyStats;
   public hp: number;
 
@@ -23,12 +24,21 @@ export class Enemy {
   private dead = false;
 
   constructor(stats: EnemyStats) {
+    this.id = crypto.randomUUID();
     this.stats = stats;
     this.hp = stats.maxHp;
+
+    console.log("Enemy criado:", stats);
   }
 
-  update(delta: number, target: { takeDamage: (amount: number) => void }) {
+  update(
+    delta: number,
+    target: { takeDamage: (amount: number) => void },
+    isInRange: boolean,
+  ) {
     if (this.isDead()) return;
+
+    if (!isInRange) return;
 
     const attackInterval = 1000 / this.stats.attackSpeed;
 

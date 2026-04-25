@@ -1,4 +1,5 @@
 import { Enemy } from "../entities/Enemy";
+import type { EnemyEntry } from "../types/EnemyEntry";
 
 export type GridPosition = {
   row: number;
@@ -15,7 +16,8 @@ export class EnemyGrid {
   readonly rows: number;
   readonly cols: number;
 
-  private cells: (Enemy | null)[][];
+  // 🔥 AGORA CORRETO
+  private cells: (EnemyEntry | null)[][];
 
   constructor(rows: number, cols: number) {
     this.rows = rows;
@@ -35,11 +37,15 @@ export class EnemyGrid {
     return this.cells[row][col] === null;
   }
 
-  addEnemy(enemy: Enemy, row: number, col: number): boolean {
+  // 🔥 AGORA RECEBE EnemyEntry (não Enemy)
+  addEnemy(entry: EnemyEntry, row: number, col: number): boolean {
     if (!this.isValidPosition(row, col)) return false;
     if (!this.isEmpty(row, col)) return false;
 
-    this.cells[row][col] = enemy;
+    entry.row = row;
+    entry.col = col;
+
+    this.cells[row][col] = entry;
     return true;
   }
 
@@ -50,13 +56,16 @@ export class EnemyGrid {
       const nextCol = col + 1;
 
       if (this.cells[row][col] === null && this.cells[row][nextCol]) {
-        const enemy = this.cells[row][nextCol]!;
+        const entry = this.cells[row][nextCol]!;
 
-        this.cells[row][col] = enemy;
+        this.cells[row][col] = entry;
         this.cells[row][nextCol] = null;
 
+        entry.row = row;
+        entry.col = col;
+
         movements.push({
-          enemy,
+          enemy: entry.enemy,
           from: { row, col: nextCol },
           to: { row, col },
         });
@@ -66,70 +75,71 @@ export class EnemyGrid {
     return movements;
   }
 
-  tryMoveForward(enemy: Enemy): boolean {
-    // Implement forward movement logic here
-    return true;
-  }
-
-  private findBestCandidate(
-    targetRow: number,
-    targetCol: number,
-  ): {
-    enemy: Enemy;
-    fromRow: number;
-    fromCol: number;
-  } | null {
-    for (let distance = 1; distance < this.rows; distance++) {
-      const row = targetRow + distance;
-
-      if (row >= this.rows) break;
-
-      // prioridade: mesma coluna
-      if (this.cells[row][targetCol]) {
-        return {
-          enemy: this.cells[row][targetCol]!,
-          fromRow: row,
-          fromCol: targetCol,
-        };
-      }
-
-      // diagonal esquerda
-      const leftCol = targetCol - 1;
-      if (leftCol >= 0 && this.cells[row][leftCol]) {
-        return {
-          enemy: this.cells[row][leftCol]!,
-          fromRow: row,
-          fromCol: leftCol,
-        };
-      }
-
-      // diagonal direita
-      const rightCol = targetCol + 1;
-      if (rightCol < this.cols && this.cells[row][rightCol]) {
-        return {
-          enemy: this.cells[row][rightCol]!,
-          fromRow: row,
-          fromCol: rightCol,
-        };
-      }
-    }
-
-    return null;
+  removeEnemyAt(row: number, col: number): void {
+    this.cells[row][col] = null;
   }
 
   removeEnemyByInstance(enemy: Enemy): void {
+    console.log("🧪 REMOVE CALLED WITH:", enemy);
+
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
-        if (this.cells[r][c] === enemy) {
+        const entry = this.cells[r][c];
+
+        console.log("🔍 CHECK CELL:", {
+          row: r,
+          col: c,
+          gridEnemy: entry?.enemy,
+          sameRef: entry?.enemy === enemy,
+        });
+
+        if (entry?.enemy.id === enemy.id) {
+          console.log("✅ REMOVED AT:", r, c);
           this.cells[r][c] = null;
           return;
         }
       }
     }
+
+    console.log("❌ NOT FOUND TO REMOVE");
   }
 
-  getAllEnemies(): Enemy[] {
-    return this.cells.flat().filter(Boolean) as Enemy[];
+  getAllEnemies(): EnemyEntry[] {
+    const result: EnemyEntry[] = [];
+
+    for (let col = 0; col < this.cols; col++) {
+      const columnEnemies = this.getEnemiesInColumn(col);
+      result.push(...columnEnemies);
+    }
+
+    return result;
+  }
+
+  getEnemiesInColumn(col: number): EnemyEntry[] {
+    const result: EnemyEntry[] = [];
+
+    for (let row = 0; row < this.rows; row++) {
+      const entry = this.cells[row][col];
+
+      if (entry) {
+        result.push(entry);
+      }
+    }
+
+    return result;
+  }
+
+  findEnemy(enemy: Enemy): { row: number; col: number } | null {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        const entry = this.cells[r][c];
+
+        if (entry?.enemy === enemy) {
+          return { row: r, col: c };
+        }
+      }
+    }
+    return null;
   }
 
   getEmptyPositions(): GridPosition[] {
@@ -146,7 +156,13 @@ export class EnemyGrid {
     return result;
   }
 
-  getEnemiesAt(row: number, col: number) {
+  getEnemiesAt(row: number, col: number): Enemy | null {
+    // return this.cells[row]?.[col] ?? null;
+    const entry = this.cells[row]?.[col];
+    return entry ? entry.enemy : null;
+  }
+
+  getEntryAt(row: number, col: number): EnemyEntry | null {
     return this.cells[row]?.[col] ?? null;
   }
 
@@ -154,39 +170,17 @@ export class EnemyGrid {
     return !this.cells[row]?.[col];
   }
 
-  getColumn(col: number) {
-    const result = [];
+  getColumn(col: number): EnemyEntry[] {
+    const result: EnemyEntry[] = [];
 
     for (let row = 0; row < this.rows; row++) {
-      const enemy = this.cells[row]?.[col];
-      if (enemy) {
-        result.push({
-          enemy,
-          row,
-          col,
-        });
+      const entry = this.cells[row]?.[col];
+      if (entry) {
+        result.push(entry);
       }
     }
 
     return result;
-  }
-
-  getEnemiesInColumn(col: number) {
-    const enemies = [];
-
-    for (let row = 0; row < this.rows; row++) {
-      const enemy = this.cells[row][col];
-
-      if (enemy) {
-        enemies.push({
-          enemy,
-          row,
-          col,
-        });
-      }
-    }
-
-    return enemies;
   }
 
   getFrontColumn(): number | null {

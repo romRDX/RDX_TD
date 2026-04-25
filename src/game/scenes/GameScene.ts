@@ -134,6 +134,8 @@ export class GameScene extends Phaser.Scene {
       this.enemyManager,
     );
 
+    console.log("GRID SNAPSHOT:", this.enemyGrid);
+
     this.waveController.start();
 
     this.combatFlow = new CombatFlowController(
@@ -186,8 +188,8 @@ export class GameScene extends Phaser.Scene {
     // COMBATE
     this.character = new Character({
       maxHp: 1000,
-      damage: 50,
-      attackSpeed: 1, // ataques por segundo
+      damage: 90,
+      attackSpeed: 4, // ataques por segundo
     });
 
     this.character.onHealthChange((hp, maxHp) => {
@@ -220,32 +222,6 @@ export class GameScene extends Phaser.Scene {
       this,
     );
 
-    // this.combatPresenter = new CombatPresenter(
-    //   this.combatSystem,
-    //   this.playerVisual,
-    //   async (deadEnemy) => {
-    //     const newTarget = await this.combatFlow.handleEnemyDeath(
-    //       deadEnemy,
-    //       this.character,
-    //       this.playerVisual,
-    //     );
-
-    //     if (!newTarget) {
-    //       this.playerVisual.stopAttack();
-
-    //       if (this.combatPresenter) {
-    //         this.combatPresenter.clearEnemy();
-    //       }
-
-    //       return;
-    //     }
-
-    //     if (this.combatPresenter) {
-    //       this.combatPresenter.setEnemy(newTarget.enemy, newTarget.visual);
-    //     }
-    //   },
-    // );
-
     this.combatPresenter = new CombatPresenter(
       this.combatSystem,
       this.playerVisual,
@@ -259,8 +235,6 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    console.log("Presenter:", this.combatPresenter);
-
     if (this.combatPresenter) {
       this.combatPresenter.update(delta);
     }
@@ -269,19 +243,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Inimigos atacam o player
     for (const entry of this.enemyManager.getAllEnemies()) {
       const enemy = entry.enemy;
 
-      enemy.update(delta, this.character);
+      const isInRange = entry.col <= enemy.stats.range;
 
-      if (enemy.stats.archetype === "melee") {
-        // depois vamos validar se está na linha de frente
-      }
-
-      if (enemy.stats.archetype === "ranged") {
-        // ranged sempre pode atacar (por enquanto)
-      }
+      enemy.update(delta, this.character, isInRange);
     }
 
     actionQueue.process();

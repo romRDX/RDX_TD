@@ -63,7 +63,7 @@ export class WaveRenderer {
     // entry.visual.setPosition(world.x, world.y + FOOT_ADJUST);
     entry.visual.setPosition(world.x, world.y);
 
-    this.enemyGrid.addEnemy(entry.enemy, cell.row, cell.col);
+    this.enemyGrid.addEnemy(entry, cell.row, cell.col);
 
     entry.row = cell.row;
     entry.col = cell.col;
