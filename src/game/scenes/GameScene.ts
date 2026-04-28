@@ -94,7 +94,11 @@ export class GameScene extends Phaser.Scene {
         stageConfig.grid.originY + row * stageConfig.grid.cellHeight;
 
       const isOddColumn = col % 2 === 1;
-      const verticalOffset = isOddColumn ? -stageConfig.grid.cellHeight / 2 : 0;
+      const OFFSET_FACTOR = 0.5; // 👈 começa com isso
+
+      const verticalOffset = isOddColumn
+        ? stageConfig.grid.cellHeight * OFFSET_FACTOR
+        : 0;
 
       return {
         x: baseX,
@@ -102,13 +106,27 @@ export class GameScene extends Phaser.Scene {
       };
     };
 
+    // for (let row = 0; row < gridSize; row++) {
+    //   for (let col = 0; col < gridSize; col++) {
+    //     const isOddColumn = col % 2 === 1;
+
+    //     // colunas ímpares têm uma célula a menos
+    //     if (isOddColumn && row === 0) {
+    //       continue; // pula a primeira célula
+    //     }
+
+    //     const { x, y } = this.gridToWorld(row, col);
+    //     this.gridHud.drawCell(x, y);
+    //   }
+    // }
+
     for (let row = 0; row < gridSize; row++) {
       for (let col = 0; col < gridSize; col++) {
         const isOddColumn = col % 2 === 1;
 
-        // colunas ímpares têm uma célula a menos
-        if (isOddColumn && row === 0) {
-          continue; // pula a primeira célula
+        // colunas ímpares têm uma célula a menos (remove a última, não a primeira)
+        if (isOddColumn && row === gridSize - 1) {
+          continue;
         }
 
         const { x, y } = this.gridToWorld(row, col);
@@ -187,9 +205,9 @@ export class GameScene extends Phaser.Scene {
 
     // COMBATE
     this.character = new Character({
-      maxHp: 1000,
+      maxHp: 1000000,
       damage: 90,
-      attackSpeed: 4, // ataques por segundo
+      attackSpeed: 1, // ataques por segundo
     });
 
     this.character.onHealthChange((hp, maxHp) => {
