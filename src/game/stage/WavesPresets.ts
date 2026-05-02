@@ -50,7 +50,7 @@ export const WAVES_PRESETS = {
       // { enemyTypeId: 1, position: { row: 2, col: 3 } },
       // { enemyTypeId: 1, position: { row: 3, col: 3 } },
       // { enemyTypeId: 1, position: { row: 4, col: 3 } },
-      // { enemyTypeId: 1, position: { row: 5, col: 3 } },
+      { enemyTypeId: 1, position: { row: 5, col: 3 } },
     ],
   },
   wave4: {

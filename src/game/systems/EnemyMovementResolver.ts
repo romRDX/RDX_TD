@@ -1,6 +1,7 @@
 import { EnemyGrid } from "../systems/EnemyGrid";
 import { Enemy } from "../entities/Enemy";
 import type { EnemyEntry } from "../types/EnemyEntry";
+import type { EnemyMovement } from "../types/EnemyMovement";
 
 type Movement = {
   enemy: Enemy;
@@ -113,203 +114,64 @@ export class EnemyMovementResolver {
     }
   }
 
-  private getDirectionalNeighbors(row: number, col: number, startCol: number) {
-    const neighbors = this.getHexNeighbors(row, col);
+  private getDirectionalNeighbors(row: number, col: number) {
+    const isOdd = col % 2 === 1;
 
-    // 🔥 só mantém posições "para trás"
-    return neighbors.filter((pos) => pos.col > startCol);
+    if (isOdd) {
+      return [
+        { row: row, col: col + 1 },
+        { row: row - 1, col: col + 1 },
+      ];
+    } else {
+      return [
+        { row: row, col: col + 1 },
+        { row: row + 1, col: col + 1 },
+      ];
+    }
   }
 
-  private resolveFromGap(startRow: number, startCol: number): Movement[] {
-    const movements: Movement[] = [];
-    const MAX_DISTANCE = 3;
+  private getLayerNeighbors(row: number, col: number) {
+    const isEvenCol = col % 2 === 0;
 
-    console.log("🧩 resolveFromGap START", { startRow, startCol });
-
-    if (!this.grid.isCellEmpty(startRow, startCol)) {
-      console.log("⛔ GAP NOT EMPTY - abort");
-      return movements;
+    if (isEvenCol) {
+      return [
+        { row: row, col: col + 1 },
+        { row: row + 1, col: col + 1 },
+      ];
+    } else {
+      return [
+        { row: row, col: col + 1 },
+        { row: row - 1, col: col + 1 },
+      ];
     }
+  }
 
-    const visited = new Set<string>();
-    const queue: { row: number; col: number; dist: number }[] = [];
+  resolveFromGap(row: number, col: number): EnemyMovement[] {
+    const movements: EnemyMovement[] = [];
 
-    queue.push({ row: startRow, col: startCol, dist: 0 });
-    visited.add(`${startRow},${startCol}`);
+    const candidates = [
+      { row, col: col + 1 }, // mesma linha (PRIORIDADE)
+      { row: row - 1, col: col + 1 }, // diagonal cima
+      { row: row + 1, col: col + 1 }, // diagonal baixo
+    ];
 
-    let bestCandidate: {
-      entry: EnemyEntry;
-      row: number;
-      col: number;
-      hexDist: number;
-      colDist: number;
-    } | null = null;
+    for (const candidate of candidates) {
+      if (!this.grid.isValidPosition(candidate.row, candidate.col)) continue;
 
-    while (queue.length > 0) {
-      console.log("🧱 NEW BFS ITERATION");
+      const entry = this.grid.getEntryAt(candidate.row, candidate.col);
 
-      const layerSize = queue.length;
-      const layerCandidates: {
-        entry: EnemyEntry;
-        row: number;
-        col: number;
-        hexDist: number;
-        colDist: number;
-      }[] = [];
+      if (entry) {
+        this.grid.moveEnemy(candidate.row, candidate.col, row, col);
 
-      console.log("🧱 PROCESSING LAYER", {
-        layerSize,
-        queueSnapshot: queue.map((q) => `[${q.row},${q.col}]`).join(" "),
-      });
-
-      for (let i = 0; i < layerSize; i++) {
-        const current = queue.shift()!;
-        const { row, col, dist } = current;
-
-        console.log("🔍 VISITING NODE", { row, col, dist });
-
-        if (dist >= MAX_DISTANCE) {
-          console.log("🛑 SKIP (MAX DIST REACHED)", { row, col, dist });
-          continue;
-        }
-
-        const nextPositions = this.getDirectionalNeighbors(row, col, startCol);
-
-        console.log("➡️ EXPANDING FROM", {
-          current: { row, col, dist },
-          nextPositions,
-        });
-
-        for (const pos of nextPositions) {
-          if (!this.grid.isValidPosition(pos.row, pos.col)) {
-            console.log("❌ INVALID POSITION", pos);
-            continue;
-          }
-
-          if (pos.col > startCol + MAX_DISTANCE) {
-            console.log("🛑 BLOCKED BY MAX COLUMN DIST", pos);
-            continue;
-          }
-
-          const key = `${pos.row},${pos.col}`;
-          if (visited.has(key)) {
-            console.log("🔁 SKIP VISITED", pos);
-            continue;
-          }
-
-          visited.add(key);
-
-          const entry = this.grid.getEntryAt(pos.row, pos.col);
-
-          console.log("🔎 CHECK CELL", {
-            pos,
-            hasEnemy: !!entry,
-          });
-
-          if (entry) {
-            const enemy = entry.enemy;
-
-            const colDist = pos.col - startCol;
-            const isInRange = colDist <= enemy.stats.range - 1;
-
-            console.log("📏 RANGE CHECK", {
-              pos,
-              colDist,
-              range: enemy.stats.range,
-              isInRange,
-            });
-
-            if (!isInRange) {
-              const hexDist = this.hexDistance(
-                pos.row,
-                pos.col,
-                startRow,
-                startCol,
-              );
-
-              console.log("✅ CANDIDATE ADDED", {
-                pos,
-                hexDist,
-                colDist,
-                layer: dist + 1,
-              });
-
-              layerCandidates.push({
-                entry,
-                row: pos.row,
-                col: pos.col,
-                hexDist,
-                colDist,
-              });
-            } else {
-              console.log("❌ REJECTED (IN RANGE)", pos);
-            }
-          }
-
-          queue.push({
-            row: pos.row,
-            col: pos.col,
-            dist: dist + 1,
-          });
-
-          console.log("📥 PUSH TO QUEUE", {
-            pos,
-            nextDist: dist + 1,
-          });
-        }
-      }
-
-      console.log("📊 LAYER CANDIDATES RESULT", layerCandidates);
-
-      if (layerCandidates.length > 0) {
-        console.log("🛑 STOP AT LAYER (FOUND CANDIDATES)");
-
-        const center = Math.floor(this.grid.rows / 2);
-
-        layerCandidates.sort((a, b) => {
-          if (a.colDist !== b.colDist) return a.colDist - b.colDist;
-          if (a.hexDist !== b.hexDist) return a.hexDist - b.hexDist;
-
-          const distA = Math.abs(a.row - center);
-          const distB = Math.abs(b.row - center);
-          if (distA !== distB) return distB - distA;
-
-          return a.row - b.row;
-        });
-
-        console.log("📊 SORTED LAYER CANDIDATES", layerCandidates);
-
-        bestCandidate = layerCandidates[0];
-        break;
+        return [
+          {
+            enemy: entry.enemy,
+            from: { row: candidate.row, col: candidate.col },
+            to: { row, col },
+          },
+        ];
       }
     }
-
-    if (!bestCandidate) {
-      console.log("🚫 NO CANDIDATE FOUND");
-      return movements;
-    }
-
-    console.log("🏆 FINAL SELECTED", bestCandidate);
-
-    this.grid.moveEnemy(
-      bestCandidate.row,
-      bestCandidate.col,
-      startRow,
-      startCol,
-    );
-
-    console.log("🚚 MOVE EXECUTED", {
-      from: { row: bestCandidate.row, col: bestCandidate.col },
-      to: { row: startRow, col: startCol },
-    });
-
-    movements.push({
-      enemy: bestCandidate.entry.enemy,
-      from: { row: bestCandidate.row, col: bestCandidate.col },
-      to: { row: startRow, col: startCol },
-    });
-
-    console.log("✅ resolveFromGap END", movements);
 
     return movements;
   }

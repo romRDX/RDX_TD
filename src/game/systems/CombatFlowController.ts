@@ -61,23 +61,58 @@ export class CombatFlowController {
     const deadRow = deadEntry.row;
     const deadCol = deadEntry.col;
 
-    // 1️⃣ remover do manager (PRIMEIRO)
+    console.log("💀 HANDLE DEATH", { deadRow, deadCol });
+
+    // 1️⃣ remover do manager
     this.enemyManager.removeEnemy(deadEntry);
 
-    // 2️⃣ remover do grid
-    // this.enemyGrid.removeEnemyByInstance(deadEnemy);
+    // 2️⃣ remover do grid (ESSENCIAL antes da cascata)
     this.enemyGrid.removeEnemyAt(deadRow, deadCol);
 
-    // 3️⃣ resolver movimentação lógica
-    const movements = this.movementResolver.resolveAfterDeath(deadRow, deadCol);
+    // 3️⃣ resolver cascata STEP-BY-STEP (CORREÇÃO PRINCIPAL)
+    const allMovements: EnemyMovement[] = [];
 
-    console.log("MOVEMENTS:", movements);
+    let currentRow = deadRow;
+    let currentCol = deadCol;
 
-    // 3️⃣ animar movimentações (AGORA via ActionQueue)
-    await this.animateMovements(movements);
+    while (true) {
+      console.log("🟡 CASCADE STEP START", {
+        gap: { row: currentRow, col: currentCol },
+      });
 
-    // 4️⃣ remover do manager
-    this.enemyManager.removeEnemy(deadEntry);
+      const movements = this.movementResolver.resolveFromGap(
+        currentRow,
+        currentCol,
+      );
+
+      if (movements.length === 0) {
+        console.log("🚫 CASCADE END");
+        break;
+      }
+
+      const move = movements[0];
+
+      console.log("➡️ CASCADE MOVE", move);
+
+      allMovements.push(move);
+
+      // 🔥 estado atual do grid após o move (importantíssimo)
+      this.enemyGrid.debugPrintGrid();
+
+      // 🔥 próximo gap correto
+      currentRow = move.from.row;
+      currentCol = move.from.col;
+
+      console.log("🟢 NEW GAP", {
+        row: currentRow,
+        col: currentCol,
+      });
+    }
+
+    console.log("🧱 FINAL CASCADE", allMovements);
+
+    // 4️⃣ animar movimentações
+    await this.animateMovements(allMovements);
 
     // 5️⃣ destruir visual
     deadEntry.visual.destroy();
@@ -85,8 +120,7 @@ export class CombatFlowController {
     // 6️⃣ próximo alvo
     const nextTarget = this.enemyManager.getCurrentTarget();
 
-    console.log("DEAD POSITION:", deadRow, deadCol);
-    console.log("GRID AFTER REMOVE:", this.enemyGrid.getAllEnemies());
+    console.log("GRID AFTER CASCADE:", this.enemyGrid.getAllEnemies());
 
     if (!nextTarget) {
       const hasMoreWaves = this.waveController.handleWaveCleared();
@@ -102,12 +136,49 @@ export class CombatFlowController {
     return nextTarget;
   }
 
+  // private async animateMovements(movements: EnemyMovement[]) {
+  //   const actions: MoveEnemyAction[] = [];
+
+  //   for (const move of movements) {
+  //     const entry = this.enemyManager.findByEnemy(move.enemy);
+  //     if (!entry) continue;
+
+  //     actions.push(
+  //       new MoveEnemyAction(entry, move.to, this.gridToWorld, this.scene),
+  //     );
+  //   }
+
+  //   const BASE_DELAY = 80;
+
+  //   for (let i = 0; i < actions.length; i++) {
+  //     const action = actions[i];
+  //     const delay = BASE_DELAY * i;
+
+  //     actionQueue.enqueue(async () => {
+  //       await new Promise((resolve) => {
+  //         this.scene.time.delayedCall(delay, async () => {
+  //           await action.execute();
+  //           resolve(null);
+  //         });
+  //       });
+  //     });
+  //   }
+
+  //   // 🔥 IMPORTANTE: processar fila
+  //   await actionQueue.process();
+  // }
+
   private async animateMovements(movements: EnemyMovement[]) {
     const actions: MoveEnemyAction[] = [];
 
     for (const move of movements) {
-      const entry = this.enemyManager.findByEnemy(move.enemy);
-      if (!entry) continue;
+      // 🔥 BUSCA DIRETO DO GRID (fonte única de verdade)
+      const entry = this.enemyGrid.getEntryAt(move.to.row, move.to.col);
+
+      if (!entry) {
+        console.warn("⚠️ ENTRY NOT FOUND AFTER MOVE", move);
+        continue;
+      }
 
       actions.push(
         new MoveEnemyAction(entry, move.to, this.gridToWorld, this.scene),
@@ -130,7 +201,6 @@ export class CombatFlowController {
       });
     }
 
-    // 🔥 IMPORTANTE: processar fila
     await actionQueue.process();
   }
 }

@@ -76,7 +76,12 @@ export class EnemyGrid {
   }
 
   removeEnemyAt(row: number, col: number): void {
+    console.log("🗑️ REMOVE FROM GRID", { row, col });
+
     this.cells[row][col] = null;
+
+    // 🔥 DEBUG
+    this.debugPrintGrid();
   }
 
   removeEnemyByInstance(enemy: Enemy): void {
@@ -163,6 +168,7 @@ export class EnemyGrid {
   }
 
   getEntryAt(row: number, col: number): EnemyEntry | null {
+    console.log("📦 GRID CHECK", row, col, this.cells[row]?.[col]);
     return this.cells[row]?.[col] ?? null;
   }
 
@@ -214,18 +220,34 @@ export class EnemyGrid {
       throw new Error("Target cell is not empty");
     }
 
+    console.log("🚚 MOVE GRID", {
+      from: { row: fromRow, col: fromCol },
+      to: { row: toRow, col: toCol },
+      enemyId: entry.enemy.id,
+    });
+
     this.cells[fromRow][fromCol] = null;
     this.cells[toRow][toCol] = entry;
 
     entry.row = toRow;
     entry.col = toCol;
+
+    // 🔥 DEBUG VISUAL DO GRID APÓS CADA MOVE
+    this.debugPrintGrid();
   }
 
-  debugPrint() {
-    console.log(
-      this.cells
-        .map((row) => row.map((cell) => (cell ? "E" : ".")).join(" "))
-        .join("\n"),
-    );
+  debugPrintGrid() {
+    console.log("🧱 GRID:");
+
+    for (let r = 0; r < this.rows; r++) {
+      let line = "";
+
+      for (let c = 0; c < this.cols; c++) {
+        const cell = this.cells[r][c];
+        line += cell ? "X " : ". ";
+      }
+
+      console.log(line);
+    }
   }
 }
