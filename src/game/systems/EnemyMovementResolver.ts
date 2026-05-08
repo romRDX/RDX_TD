@@ -149,31 +149,89 @@ export class EnemyMovementResolver {
   resolveFromGap(row: number, col: number): EnemyMovement[] {
     const movements: EnemyMovement[] = [];
 
-    const candidates = [
-      { row, col: col + 1 }, // mesma linha (PRIORIDADE)
-      { row: row - 1, col: col + 1 }, // diagonal cima
-      { row: row + 1, col: col + 1 }, // diagonal baixo
-    ];
+    // const rawCandidates = [
+    //   { row, col: col + 1 }, // mesma linha
+    //   { row: row - 1, col: col + 1 }, // cima
+    //   { row: row + 1, col: col + 1 }, // baixo
+    // ];
 
-    for (const candidate of candidates) {
+    const rawCandidates = [];
+
+    for (let d = 1; d <= 3; d++) {
+      rawCandidates.push(
+        { row, col: col + d },
+        { row: row - d, col: col + d },
+        { row: row + d, col: col + d },
+      );
+    }
+
+    const validCandidates: {
+      entry: EnemyEntry;
+      row: number;
+      col: number;
+      colDist: number; // 🔥 NOVO
+    }[] = [];
+
+    for (const candidate of rawCandidates) {
       if (!this.grid.isValidPosition(candidate.row, candidate.col)) continue;
 
       const entry = this.grid.getEntryAt(candidate.row, candidate.col);
 
       if (entry) {
-        this.grid.moveEnemy(candidate.row, candidate.col, row, col);
-
-        return [
-          {
-            enemy: entry.enemy,
-            from: { row: candidate.row, col: candidate.col },
-            to: { row, col },
-          },
-        ];
+        if (entry) {
+          validCandidates.push({
+            entry,
+            row: candidate.row,
+            col: candidate.col,
+            colDist: candidate.col - col, // 🔥 DISTÂNCIA REAL EM COLUNA
+          });
+        }
       }
     }
 
-    return movements;
+    if (validCandidates.length === 0) {
+      return movements;
+    }
+
+    const rows = this.grid.rows;
+
+    // 🔥 centros (suporta 6 ou 7 corretamente)
+    const centerPositions =
+      rows % 2 === 0 ? [rows / 2 - 1, rows / 2] : [Math.floor(rows / 2)];
+
+    const distToCenter = (r: number) =>
+      Math.min(...centerPositions.map((c) => Math.abs(r - c)));
+
+    // 🔥 SORT COM TODAS AS REGRAS
+    validCandidates.sort((a, b) => {
+      // 1. distância física (hex) — (aqui é sempre igual hoje, mas mantém correto)
+      const hexA = this.hexDistance(a.row, a.col, row, col);
+      const hexB = this.hexDistance(b.row, b.col, row, col);
+      if (hexA !== hexB) return hexA - hexB;
+
+      // 2. distância em coluna (CRÍTICO — AGORA FUNCIONA)
+      if (a.colDist !== b.colDist) return a.colDist - b.colDist;
+
+      // 3. distância do centro (MAIS LONGE primeiro)
+      const distA = distToCenter(a.row);
+      const distB = distToCenter(b.row);
+      if (distA !== distB) return distB - distA;
+
+      // 4. mais acima
+      return a.row - b.row;
+    });
+
+    const best = validCandidates[0];
+
+    this.grid.moveEnemy(best.row, best.col, row, col);
+
+    return [
+      {
+        enemy: best.entry.enemy,
+        from: { row: best.row, col: best.col },
+        to: { row, col },
+      },
+    ];
   }
 
   private isInRange(col: number, range: number): boolean {
