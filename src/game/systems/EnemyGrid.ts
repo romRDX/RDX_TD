@@ -45,7 +45,20 @@ export class EnemyGrid {
     entry.row = row;
     entry.col = col;
 
+    // 🔥 sincroniza Enemy também
+    entry.enemy.row = row;
+    entry.enemy.col = col;
+
+    console.log("➕ ADD ENEMY TO GRID", {
+      row,
+      col,
+      enemyId: entry.enemy.id,
+    });
+
     this.cells[row][col] = entry;
+
+    this.debugPrintGrid();
+
     return true;
   }
 
@@ -229,8 +242,18 @@ export class EnemyGrid {
     this.cells[fromRow][fromCol] = null;
     this.cells[toRow][toCol] = entry;
 
+    // 🔥 sincroniza EnemyEntry
     entry.row = toRow;
     entry.col = toCol;
+
+    // 🔥 sincroniza Enemy
+    entry.enemy.row = toRow;
+    entry.enemy.col = toCol;
+
+    console.log("📍 ENEMY POSITION SYNC", {
+      enemyRow: entry.enemy.row,
+      enemyCol: entry.enemy.col,
+    });
 
     // 🔥 DEBUG VISUAL DO GRID APÓS CADA MOVE
     this.debugPrintGrid();

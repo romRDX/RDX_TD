@@ -146,6 +146,124 @@ export class EnemyMovementResolver {
     }
   }
 
+  findBestFrontlinerCandidate(): EnemyEntry | null {
+    console.log("🛡️ FIND FRONTLINER START");
+
+    const allEnemies = this.grid.getAllEnemies();
+
+    console.log(
+      "🛡️ ALL ENEMIES:",
+      allEnemies.map((e) => ({
+        row: e.row,
+        col: e.col,
+        archetype: e.enemy.stats.archetype,
+      })),
+    );
+
+    if (allEnemies.length === 0) {
+      console.log("🚫 NO ENEMIES AVAILABLE");
+      return null;
+    }
+
+    const rows = this.grid.rows;
+
+    // 🔥 centro do grid
+    const centerPositions =
+      rows % 2 === 0 ? [rows / 2 - 1, rows / 2] : [Math.floor(rows / 2)];
+
+    const distToCenter = (r: number) =>
+      Math.min(...centerPositions.map((c) => Math.abs(r - c)));
+
+    const candidates = [...allEnemies];
+
+    candidates.sort((a, b) => {
+      console.log("⚖️ FRONTLINE COMPARE", {
+        A: { row: a.row, col: a.col },
+        B: { row: b.row, col: b.col },
+      });
+
+      // 1️⃣ MAIS PRÓXIMO DA COLUNA 0
+      if (a.col !== b.col) {
+        console.log("🏆 WIN BY COLUMN", a.col < b.col ? "A" : "B");
+
+        return a.col - b.col;
+      }
+
+      // 2️⃣ MAIS PRÓXIMO DO CENTRO
+      const distA = distToCenter(a.row);
+      const distB = distToCenter(b.row);
+
+      if (distA !== distB) {
+        console.log("🏆 WIN BY CENTER", distA < distB ? "A" : "B");
+
+        return distA - distB;
+      }
+
+      // 3️⃣ MAIS EMBAIXO
+      console.log("🏆 WIN BY LOWER ROW", a.row > b.row ? "A" : "B");
+
+      return b.row - a.row;
+    });
+
+    const best = candidates[0];
+
+    console.log("🛡️ FRONTLINER SELECTED", {
+      row: best.row,
+      col: best.col,
+      archetype: best.enemy.stats.archetype,
+    });
+
+    return best;
+  }
+
+  private wantsToMove(entry: EnemyEntry): boolean {
+    const enemy = entry.enemy;
+
+    const archetype = enemy.stats.archetype;
+    const range = enemy.stats.range;
+
+    const inRange = this.isInRange(entry.col, range);
+
+    console.log("🧠 WANTS TO MOVE CHECK", {
+      row: entry.row,
+      col: entry.col,
+      archetype,
+      range,
+      inRange,
+    });
+
+    // 🔥 melee sempre quer avançar
+    if (archetype === "melee") {
+      console.log("⚔️ MELEE -> WANTS TO MOVE");
+
+      return true;
+    }
+
+    // 🔥 ranged parado enquanto em range
+    if (archetype === "ranged") {
+      const wants = !inRange;
+
+      console.log(
+        wants
+          ? "🏹 RANGED -> OUT OF RANGE -> MOVE"
+          : "🏹 RANGED -> IN RANGE -> STAY",
+      );
+
+      return wants;
+    }
+
+    // 🔥 hybrid (temporário)
+    if (archetype === "hybrid") {
+      console.log("🗡️ HYBRID -> WANTS TO MOVE");
+
+      return true;
+    }
+
+    console.log("❓ UNKNOWN ARCHETYPE -> STAY");
+
+    return false;
+  }
+
   resolveFromGap(row: number, col: number): EnemyMovement[] {
     const movements: EnemyMovement[] = [];
 
@@ -178,14 +296,30 @@ export class EnemyMovementResolver {
       const entry = this.grid.getEntryAt(candidate.row, candidate.col);
 
       if (entry) {
-        if (entry) {
-          validCandidates.push({
-            entry,
-            row: candidate.row,
-            col: candidate.col,
-            colDist: candidate.col - col, // 🔥 DISTÂNCIA REAL EM COLUNA
-          });
+        console.log("🔍 CANDIDATE FOUND", {
+          row: candidate.row,
+          col: candidate.col,
+          archetype: entry.enemy.stats.archetype,
+        });
+
+        const wantsToMove = this.wantsToMove(entry);
+
+        console.log("🧠 CANDIDATE WANTS TO MOVE?", wantsToMove);
+
+        if (!wantsToMove) {
+          console.log("🛑 CANDIDATE REFUSED MOVE");
+
+          continue;
         }
+
+        validCandidates.push({
+          entry,
+          row: candidate.row,
+          col: candidate.col,
+          colDist: candidate.col - col,
+        });
+
+        console.log("✅ VALID MOVE CANDIDATE ADDED");
       }
     }
 

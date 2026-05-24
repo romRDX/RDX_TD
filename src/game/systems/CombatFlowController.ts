@@ -50,6 +50,87 @@ export class CombatFlowController {
     this.onNewTarget = callback;
   }
 
+  private hasFrontline(): boolean {
+    console.log("🛡️ CHECK FRONTLINE START");
+
+    const frontlineEnemies = this.enemyGrid.getEnemiesInColumn(0);
+
+    console.log("🛡️ FRONTLINE ENEMIES:", frontlineEnemies);
+
+    const hasFront = frontlineEnemies.length > 0;
+
+    console.log("🛡️ HAS FRONTLINE?", hasFront);
+
+    return hasFront;
+  }
+
+  private async moveFrontlinerToFront(entry: EnemyEntry): Promise<void> {
+    console.log("🛡️ MOVE FRONTLINER START", {
+      from: {
+        row: entry.row,
+        col: entry.col,
+      },
+    });
+
+    const fromRow = entry.row;
+    const fromCol = entry.col;
+
+    // 🔥 move lógico IMEDIATO
+    this.enemyGrid.moveEnemy(fromRow, fromCol, fromRow, 0);
+
+    console.log("🛡️ GRID MOVE COMPLETE", {
+      from: { row: fromRow, col: fromCol },
+      to: { row: fromRow, col: 0 },
+    });
+
+    const movement: EnemyMovement = {
+      enemy: entry.enemy,
+      from: {
+        row: fromRow,
+        col: fromCol,
+      },
+      to: {
+        row: fromRow,
+        col: 0,
+      },
+    };
+
+    console.log("🛡️ ANIMATING FRONTLINER MOVE", movement);
+
+    await this.animateMovements([movement]);
+
+    console.log("🛡️ FRONTLINER MOVE END");
+  }
+
+  private async checkAndFillFrontline(): Promise<void> {
+    console.log("🛡️ CHECK AND FILL FRONTLINE START");
+
+    // 🔥 já existe frontline?
+    if (this.hasFrontline()) {
+      console.log("🛡️ FRONTLINE ALREADY EXISTS");
+
+      return;
+    }
+
+    console.log("⚠️ FRONTLINE EMPTY");
+
+    // 🔥 procura melhor candidato
+    const candidate = this.movementResolver.findBestFrontlinerCandidate();
+
+    console.log("🛡️ FRONTLINER CANDIDATE:", candidate);
+
+    if (!candidate) {
+      console.log("🚫 NO FRONTLINER AVAILABLE");
+
+      return;
+    }
+
+    // 🔥 move + anima
+    await this.moveFrontlinerToFront(candidate);
+
+    console.log("🛡️ CHECK AND FILL FRONTLINE END");
+  }
+
   async handleEnemyDeath(
     deadEnemy: Enemy,
     playerCharacter: Character,
@@ -113,6 +194,9 @@ export class CombatFlowController {
 
     // 4️⃣ animar movimentações
     await this.animateMovements(allMovements);
+
+    // 🔥 após toda cascata estabilizar
+    await this.checkAndFillFrontline();
 
     // 5️⃣ destruir visual
     deadEntry.visual.destroy();

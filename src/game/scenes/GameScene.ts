@@ -264,7 +264,8 @@ export class GameScene extends Phaser.Scene {
     for (const entry of this.enemyManager.getAllEnemies()) {
       const enemy = entry.enemy;
 
-      const isInRange = entry.col <= enemy.stats.range;
+      // const isInRange = entry.col <= enemy.stats.range;
+      const isInRange = entry.col <= enemy.stats.range - 1;
 
       enemy.update(delta, this.character, isInRange);
     }
